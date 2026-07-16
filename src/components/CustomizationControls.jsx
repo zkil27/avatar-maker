@@ -16,7 +16,7 @@ export default function CustomizationControls({ selectedOptions, onChange, skinC
   const [activeCategory, setActiveCategory] = useState('skin');
 
   return (
-    <div data-testid="customization-controls">
+    <div data-testid="customization-controls" style={{ display: 'flex', flexDirection: 'column' }}>
       {/* Category tabs */}
       <div className="tabs-container" role="tablist">
         {CATEGORY_KEYS.map(key => (
