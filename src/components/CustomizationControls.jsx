@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
 import { CATEGORIES, CATEGORY_KEYS } from '../constants/categories';
 
-export default function CustomizationControls({ selectedOptions, onChange }) {
+const SKIN_TONES = [
+  '#fadcbc', // Default beige
+  '#f1c27d', // Warm peach
+  '#e0ac69', // Golden
+  '#c68642', // Tan
+  '#8d5524', // Brown
+  '#3d2210', // Dark brown
+  '#ffdbac', // Pale
+  '#e5c298', // Olive
+];
+
+export default function CustomizationControls({ selectedOptions, onChange, skinColor, onSkinColorChange }) {
   const [activeCategory, setActiveCategory] = useState('skin');
 
   return (
@@ -43,6 +54,26 @@ export default function CustomizationControls({ selectedOptions, onChange }) {
           );
         })}
       </div>
+
+      {/* Skin Color Palette */}
+      {activeCategory === 'skin' && (
+        <div style={{ marginTop: '16px' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px', marginLeft: '4px' }}>
+            Skin Tone
+          </div>
+          <div className="color-palette" style={{ padding: '4px' }}>
+            {SKIN_TONES.map(color => (
+              <button
+                key={color}
+                className={`color-swatch ${skinColor === color ? 'active' : ''}`}
+                style={{ backgroundColor: color, width: '32px', height: '32px' }}
+                onClick={() => onSkinColorChange(color)}
+                aria-label={`Skin color ${color}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

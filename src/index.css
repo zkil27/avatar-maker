@@ -126,12 +126,16 @@ body {
   position: relative;
   width: 100%;
   aspect-ratio: 1;
-  max-height: 300px;
   background: linear-gradient(145deg, var(--bg-preview) 0%, #F0F8FF 40%, var(--bg-preview-alt) 100%);
   border-radius: 18px;
   border: 2.5px solid var(--border-main);
   overflow: hidden;
   box-shadow: var(--shadow-inset);
+  transition: transform 0.3s ease;
+}
+
+.preview-container.expanded {
+  /* You can add special styles for expanded drawing mode here if needed */
 }
 
 .preview-container canvas {
@@ -410,4 +414,144 @@ body {
     padding: 6px 10px;
     font-size: 0.65rem;
   }
+}
+
+/* ========== DRAWING CONTROLS ========== */
+
+.btn-draw {
+  background: var(--pink-soft);
+  color: #c76f6f;
+  border-color: #f7b7b7;
+  box-shadow: 0 3px 0 #e6a8a8;
+}
+
+.btn-draw:hover {
+  background: #ffdfdf;
+}
+
+.btn-draw:active {
+  box-shadow: 0 1px 0 #e6a8a8;
+}
+
+.drawing-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-page);
+  padding: 12px;
+  border-radius: 16px;
+  border: 2px dashed var(--border-main);
+  margin-top: 12px;
+}
+
+.drawing-tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tool-btn {
+  padding: 8px 12px;
+  background: var(--beige-light);
+  border: 2px solid var(--border-light);
+  border-radius: 8px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.tool-btn:hover {
+  background: #fff;
+}
+
+.tool-btn.active {
+  background: var(--blue-pale);
+  border-color: var(--border-active);
+  color: var(--text-accent);
+}
+
+.color-palette {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.active {
+  border-color: var(--border-active);
+  transform: scale(1.15);
+}
+
+.color-picker {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: transparent;
+}
+
+.color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-picker::-webkit-color-swatch {
+  border: 2.5px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.size-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 6px;
+  background: var(--border-light);
+  border-radius: 5px;
+  outline: none;
+}
+
+.size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-accent);
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.main-card {
+  padding: 12px;
+  border-radius: 20px;
+}
+.tab-btn {
+  padding: 6px 10px;
+  font-size: 0.65rem;
 }

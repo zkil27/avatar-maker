@@ -1,6 +1,6 @@
 export const CATEGORIES = {
   skin: {
-    name: 'Skin',
+    name: 'Body Type',
     zIndex: 1,
     options: [
       { id: 'skin_1', name: 'Skin 1', path: '/assets/skin/Untitled12_20260716185006.png' },
