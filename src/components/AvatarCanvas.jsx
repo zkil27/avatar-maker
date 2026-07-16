@@ -7,8 +7,7 @@ export const INITIAL_STATE = {
   mouth: 'mouth_1',
   eyes: 'eyes_1',
   hair: 'none',
-  glasses: 'none',
-  hats: 'none',
+  accessories: 'none',
 };
 
 const imageCache = new Map();

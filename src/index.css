@@ -152,8 +152,56 @@ body {
 
 .action-buttons {
   display: flex;
-  gap: 10px;
-  flex-shrink: 0;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* ========== POSITION TOGGLE BUTTON ========== */
+
+.toggle-position-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: #fff;
+  color: var(--text-primary);
+  border: 2.5px solid var(--border-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: var(--shadow-soft);
+  font-size: 20px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  transform-origin: center;
+}
+
+.toggle-position-btn:hover {
+  transform: scale(1.08);
+}
+
+.toggle-position-btn:active {
+  transform: scale(0.95);
+}
+
+.toggle-position-btn.active {
+  background-color: var(--border-active);
+  color: #fff;
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-button-blue);
+}
+
+.toggle-icon {
+  display: inline-block;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.toggle-position-btn.active .toggle-icon {
+  transform: rotate(90deg);
 }
 
 .btn {
@@ -271,16 +319,17 @@ body {
 /* ========== OPTIONS GRID ========== */
 
 .options-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 3%;
+  row-gap: 10px;
   overflow-y: auto;
   overflow-x: hidden;
   padding-bottom: 8px;
   scrollbar-width: none; /* Firefox */
   flex: 1;
   min-height: 0;
-  align-content: start;
+  align-content: flex-start;
 }
 
 .options-grid::-webkit-scrollbar {
@@ -289,6 +338,8 @@ body {
 
 .option-btn {
   position: relative;
+  aspect-ratio: 1;
+  width: 31.33%;
   border: 2.5px solid var(--border-light);
   border-radius: 16px;
   background: #fff;
@@ -298,13 +349,6 @@ body {
   box-shadow: 0 2px 0 var(--border-light);
   padding: 0;
   display: block;
-  width: 100%;
-}
-
-.option-btn::before {
-  content: "";
-  display: block;
-  padding-bottom: 100%;
 }
 
 .option-btn-content {

@@ -75,20 +75,13 @@ export const CATEGORIES = {
       { id: 'none', name: 'None', path: null },
     ],
   },
-  glasses: {
-    name: 'Glasses',
+  accessories: {
+    name: 'Accessories',
     zIndex: 6,
-    options: [
-      { id: 'none', name: 'None', path: null },
-    ],
-  },
-  hats: {
-    name: 'Hats',
-    zIndex: 7,
     options: [
       { id: 'none', name: 'None', path: null },
     ],
   },
 };
 
-export const CATEGORY_KEYS = ['skin', 'clothes', 'mouth', 'eyes', 'hair', 'glasses', 'hats'];
+export const CATEGORY_KEYS = ['skin', 'clothes', 'mouth', 'eyes', 'hair', 'accessories'];

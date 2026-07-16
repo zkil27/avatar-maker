@@ -14,8 +14,7 @@ export default function App() {
     mouth: { x: 0, y: 0, scale: 1, rotation: 0 },
     eyes: { x: 0, y: 0, scale: 1, rotation: 0 },
     hair: { x: 0, y: 0, scale: 1, rotation: 0 },
-    glasses: { x: 0, y: 0, scale: 1, rotation: 0 },
-    hats: { x: 0, y: 0, scale: 1, rotation: 0 }
+    accessories: { x: 0, y: 0, scale: 1, rotation: 0 }
   };
 
   const [layerPositions, setLayerPositions] = useState(DEFAULT_LAYER_POSITIONS);
@@ -70,56 +69,34 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <div className="app-title">
-        <div className="app-title-main">
-          <span className="highlight">PEAK</span> TYPE
-        </div>
-        <span className="app-title-sub">✧ avatar maker ✧</span>
-      </div>
-
       <div className="main-card">
-        <div className="preview-container" style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', margin: '0 auto 20px', width: '100%', maxWidth: '400px', aspectRatio: '1' }}>
           <button
             onClick={() => setStep(step === 'position' ? 'customize' : 'position')}
             title={step === 'position' ? "Close Position Editor" : "Open Position Editor"}
-            style={{
-              position: 'absolute',
-              top: '12px',
-              right: '12px',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: step === 'position' ? 'var(--primary-color)' : '#fff',
-              color: step === 'position' ? '#fff' : 'var(--text-main)',
-              border: '2.5px solid var(--border-main)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              zIndex: 10,
-              boxShadow: '0 2px 0 var(--border-light)',
-              fontSize: '18px'
-            }}
+            className={`toggle-position-btn ${step === 'position' ? 'active' : ''}`}
           >
-            {step === 'position' ? '✕' : '✥'}
+            <span className="toggle-icon">{step === 'position' ? '✕' : '✥'}</span>
           </button>
           
-          <AvatarCanvas
-            ref={canvasRef}
-            selectedOptions={selectedOptions}
-            onLoadingChange={setIsLoading}
-            skinColor={skinColor}
-            badgeHue={badgeHue}
-            layerPositions={layerPositions}
-            setLayerPositions={setLayerPositions}
-            activePositionLayer={activePositionLayer}
-            isPositioning={step === 'position'}
-          />
-          {isLoading && (
-            <div className="loading-overlay">
-              <div className="spinner" />
-            </div>
-          )}
+          <div className="preview-container" style={{ margin: 0, width: '100%', height: '100%' }}>
+            <AvatarCanvas
+              ref={canvasRef}
+              selectedOptions={selectedOptions}
+              onLoadingChange={setIsLoading}
+              skinColor={skinColor}
+              badgeHue={badgeHue}
+              layerPositions={layerPositions}
+              setLayerPositions={setLayerPositions}
+              activePositionLayer={activePositionLayer}
+              isPositioning={step === 'position'}
+            />
+            {isLoading && (
+              <div className="loading-overlay">
+                <div className="spinner" />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="action-buttons">
@@ -151,7 +128,7 @@ export default function App() {
             onBadgeHueChange={setBadgeHue}
           />
         ) : (
-          <div className="position-controls" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#fff', borderRadius: '18px', border: '2.5px solid var(--border-main)' }}>
+          <div className="position-controls" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#fff', borderRadius: '18px', border: '2.5px solid var(--border-main)', flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <div style={{ position: 'relative' }}>
               <h3 style={{ margin: 0, textAlign: 'center', color: 'var(--text-main)', fontSize: '18px' }}>Adjust Position</h3>
               <button 
@@ -164,7 +141,7 @@ export default function App() {
             {/* Layer Selector Tabs */}
             <div className="tabs-wrapper" style={{ margin: '0 -20px' }}>
               <div className="tabs-container" style={{ margin: '0 20px', padding: '4px', gap: '4px', background: 'var(--bg-preview-alt)' }}>
-                {['global', 'eyes', 'mouth', 'hair', 'glasses', 'hats'].map(layer => (
+                {['global', 'eyes', 'mouth', 'hair', 'accessories'].map(layer => (
                   <button
                     key={layer}
                     onClick={() => setActivePositionLayer(layer)}
@@ -177,10 +154,7 @@ export default function App() {
               </div>
             </div>
 
-            <p style={{ margin: 0, textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.4' }}>
-              👆 <b>Drag the {activePositionLayer === 'global' ? 'avatar' : activePositionLayer}</b> inside the circle to move it around!<br/>
-            </p>
-            
+
             <div style={{ marginTop: '4px' }}>
               <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold', color: 'var(--text-main)' }}>
                 Size <span>{Math.round(layerPositions[activePositionLayer].scale * 100)}%</span>
@@ -216,8 +190,6 @@ export default function App() {
           </div>
         )}
       </div>
-
-      <div className="footer-label">made with ♡</div>
     </div>
   );
 }
