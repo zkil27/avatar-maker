@@ -45,23 +45,9 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
-  /* Realistic wood desk texture using gradients */
-  background-image: 
-    repeating-linear-gradient(
-      to right,
-      transparent,
-      transparent 50px,
-      rgba(0, 0, 0, 0.05) 50px,
-      rgba(0, 0, 0, 0.05) 53px
-    ),
-    linear-gradient(
-      89deg,
-      #4a311b 0%,
-      #3a2614 25%,
-      #2f1e0f 50%,
-      #3a2614 75%,
-      #4a311b 100%
-    );
+  background-image: url('/assets/cover.png');
+  background-size: cover;
+  background-position: center;
   background-attachment: fixed;
 }
 
@@ -198,7 +184,7 @@ body {
   /* You can add special styles for expanded drawing mode here if needed */
 }
 
-.preview-container canvas {
+.preview-container canvas[data-testid="avatar-canvas"] {
   width: 100%;
   height: 100%;
   display: block;
@@ -319,17 +305,10 @@ body {
   font-size: 1.1rem;
   cursor: pointer;
   opacity: 0;
+  visibility: hidden;
   transform: translateY(20px);
-  pointer-events: none;
-  transition: all 0.5s ease;
   text-transform: uppercase;
   letter-spacing: 2px;
-}
-
-.final-download-btn.visible {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
 }
 
 .final-download-btn:active {

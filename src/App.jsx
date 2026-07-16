@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import AvatarCanvas, { INITIAL_STATE } from './components/AvatarCanvas';
 import CustomizationControls from './components/CustomizationControls';
+import Badge3D from './components/Badge3D';
 import { CATEGORIES } from './constants/categories';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -8,11 +9,13 @@ import { useGSAP } from '@gsap/react';
 gsap.registerPlugin(useGSAP);
 
 const BADGE_HUES = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
+const BADGE_TEXT_COLORS = ['#ffffff', '#000000', '#fadcbc', '#e4c653', '#b3391b', '#2a3621', '#4a5b6d', '#7a493b'];
 
 export default function App() {
   const [selectedOptions, setSelectedOptions] = useState(INITIAL_STATE);
   const [skinColor, setSkinColor] = useState('#fadcbc'); // Default beige skin tone
   const [badgeHue, setBadgeHue] = useState(0); // 0 to 360 hue rotation
+  const [badgeTextColor, setBadgeTextColor] = useState('#ffffff'); // Text overlay color
   const DEFAULT_LAYER_POSITIONS = {
     global: { x: 0, y: 15, scale: 0.75, rotation: 0 },
     skin: { x: 0, y: 0, scale: 1, rotation: 0 },
@@ -28,10 +31,10 @@ export default function App() {
   const [step, setStep] = useState('customize'); // 'customize' or 'position'
   const [isLoading, setIsLoading] = useState(false);
   const [appState, setAppState] = useState('editing'); // 'editing', 'saving', 'finished'
+  const [badgeImageURL, setBadgeImageURL] = useState(null);
   const [badgeOpacity, setBadgeOpacity] = useState(0);
   const badgeProxyRef = useRef({ opacity: 0 });
   const isInitialMount = useRef(true);
-  const [avatarDevelopProgress, setAvatarDevelopProgress] = useState(1);
   const downloadingRef = useRef(false);
   const canvasRef = useRef(null);
   const positionTabsRef = useRef(null);
@@ -41,8 +44,6 @@ export default function App() {
   const previewContainerRef = useRef(null);
   const bottomPanelRef = useRef(null);
   const mainCardRef = useRef(null);
-  const polaroidFrameRef = useRef(null);
-  const cameraFlashRef = useRef(null);
   const finalBtnRef = useRef(null);
 
   const { contextSafe } = useGSAP({ scope: containerRef });
@@ -193,6 +194,13 @@ export default function App() {
 
   const handleFinishID = contextSafe(() => {
     if (isLoading || downloadingRef.current || appState !== 'editing') return;
+    
+    // Capture the 2D badge image BEFORE starting animations
+    const canvas = document.querySelector('[data-testid="avatar-canvas"]');
+    if (canvas) {
+      setBadgeImageURL(canvas.toDataURL('image/png'));
+    }
+
     setAppState('saving');
 
     const tl = gsap.timeline();
@@ -204,45 +212,49 @@ export default function App() {
       ease: 'back.in(1.2)'
     });
 
-    // 2. CAMERA FLASH!
-    tl.to(cameraFlashRef.current, {
-      opacity: 1,
-      duration: 0.1,
-      ease: 'power4.out',
-      onComplete: () => {
-        // While screen is white, reset avatar develop progress to 0 (dark)
-        setAvatarDevelopProgress(0);
-      }
-    });
-    
-    // 3. Drop in Polaroid frame while screen is flashing
-    tl.to(polaroidFrameRef.current, {
-      opacity: 1,
+    // 2. Badge pops back to natural position in wrapper (fixes overlap)
+    tl.to(previewContainerRef.current, {
       y: 0,
       scale: 1,
-      rotation: 0,
-      duration: 0.1
+      duration: 0.7,
+      ease: 'back.out(1.2)'
+    }, "<0.1");
+
+    // 3. Wrapper slides down to visually center on the screen
+    tl.to(cardWrapperRef.current, {
+      y: '15vh',
+      duration: 0.8,
+      ease: 'power3.inOut'
     }, "<");
 
-    // 4. Flash fades out slowly
-    tl.to(cameraFlashRef.current, {
-      opacity: 0,
-      duration: 1.5,
-      ease: 'power2.out'
-    });
-
-    // 5. Photo developing effect
-    const proxy = { progress: 0 };
-    tl.to(proxy, {
-      progress: 1,
-      duration: 4.5, // Slow development
-      ease: 'power1.inOut',
-      onUpdate: () => setAvatarDevelopProgress(proxy.progress),
+    // 4. Cute happy wiggle!
+    tl.to(previewContainerRef.current, {
+      rotationZ: -8,
+      duration: 0.12,
+      ease: 'power1.inOut'
+    }, "-=0.2")
+    .to(previewContainerRef.current, {
+      rotationZ: 8,
+      duration: 0.12,
+      ease: 'power1.inOut'
+    })
+    .to(previewContainerRef.current, {
+      rotationZ: -4,
+      duration: 0.12,
+      ease: 'power1.inOut'
+    })
+    .to(previewContainerRef.current, {
+      rotationZ: 0,
+      duration: 0.4,
+      ease: 'elastic.out(1.5, 0.5)',
       onComplete: () => {
         setAppState('finished');
-        gsap.to(finalBtnRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'back.out(1.5)' });
+        gsap.fromTo(finalBtnRef.current, 
+          { autoAlpha: 0, scale: 0.5, rotationZ: -10, y: 30 },
+          { autoAlpha: 1, scale: 1, rotationZ: 0, y: 0, duration: 0.8, ease: 'elastic.out(1.2, 0.4)' }
+        );
       }
-    }, "-=1.0"); // Start developing as flash fades
+    });
   });
 
   const handleDownloadImage = () => {
@@ -251,11 +263,15 @@ export default function App() {
     downloadingRef.current = true;
     setTimeout(() => { downloadingRef.current = false; }, 500);
 
-    const canvas = document.querySelector('[data-testid="avatar-canvas"]');
-    if (!canvas) return;
+    let dataUrl = badgeImageURL;
+    if (!dataUrl) {
+      const canvas = document.querySelector('[data-testid="avatar-canvas"]');
+      if (canvas) dataUrl = canvas.toDataURL('image/png');
+    }
+    
+    if (!dataUrl) return;
 
     try {
-      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = 'my-camper-id.png';
       link.href = dataUrl;
@@ -284,15 +300,16 @@ export default function App() {
       setSelectedOptions(INITIAL_STATE);
       setSkinColor('#fadcbc');
       setBadgeHue(0);
+      setBadgeTextColor('#ffffff');
+      setBadgeImageURL(null);
       setLayerPositions(DEFAULT_LAYER_POSITIONS);
       setActivePositionLayer('global');
       setAppState('editing');
       setStep('customize');
       setBadgeOpacity(0);
-      setAvatarDevelopProgress(1);
       
       // Reset all GSAP properties except the cardWrapper position
-      gsap.set([bottomPanelRef.current, polaroidFrameRef.current, mainCardRef.current, finalBtnRef.current], { clearProps: 'all' });
+      gsap.set([bottomPanelRef.current, mainCardRef.current, finalBtnRef.current], { clearProps: 'all' });
       
       // Keep giant avatar set
       const { scale, y } = getGiantAvatarProps();
@@ -314,14 +331,12 @@ export default function App() {
 
   return (
     <div className="app-container" ref={containerRef}>
-      <div className="camera-flash" ref={cameraFlashRef}></div>
       {/* Centered Wrapper for Notebook Page */}
       <div className="id-card-wrapper" ref={cardWrapperRef}>
         
         <div className="main-card" ref={mainCardRef} style={{ width: '100%', maxWidth: '440px', padding: '24px 16px' }}>
 
           <div style={{ position: 'relative', margin: '0 auto 4px', zIndex: 10, display: 'inline-block' }}>
-            <div className="polaroid-frame" ref={polaroidFrameRef}></div>
             <div 
               className="preview-container" 
               ref={previewContainerRef}
@@ -329,27 +344,32 @@ export default function App() {
                 background: `rgba(255, 255, 255, ${badgeOpacity})`,
                 borderColor: `rgba(44, 53, 41, ${badgeOpacity})`,
                 boxShadow: badgeOpacity > 0 ? 'var(--shadow-inset)' : 'none',
-                overflow: badgeOpacity > 0 ? 'hidden' : 'visible',
+                overflow: badgeOpacity > 0 && appState !== 'finished' ? 'hidden' : 'visible',
                 borderRadius: badgeOpacity > 0 ? '50%' : '0'
               }}
             >
-              <AvatarCanvas
-                ref={canvasRef}
-                selectedOptions={selectedOptions}
-                onLoadingChange={setIsLoading}
-                skinColor={skinColor}
-                badgeHue={badgeHue}
-                layerPositions={layerPositions}
-                setLayerPositions={setLayerPositions}
-                activePositionLayer={activePositionLayer}
-                isPositioning={step === 'position'}
-                badgeOpacity={badgeOpacity}
-                avatarDevelopProgress={avatarDevelopProgress}
-              />
-              {isLoading && (
+              {appState !== 'finished' && (
+                <AvatarCanvas
+                  ref={canvasRef}
+                  selectedOptions={selectedOptions}
+                  onLoadingChange={setIsLoading}
+                  skinColor={skinColor}
+                  badgeHue={badgeHue}
+                  layerPositions={layerPositions}
+                  setLayerPositions={setLayerPositions}
+                  activePositionLayer={activePositionLayer}
+                  isPositioning={step === 'position'}
+                  badgeOpacity={badgeOpacity}
+                  badgeTextColor={badgeTextColor}
+                />
+              )}
+              {isLoading && appState !== 'finished' && (
                 <div className="loading-overlay">
                   <div className="spinner" />
                 </div>
+              )}
+              {appState === 'finished' && badgeImageURL && (
+                <Badge3D textureUrl={badgeImageURL} badgeHue={badgeHue} />
               )}
             </div>
           </div>
@@ -361,7 +381,7 @@ export default function App() {
           onClick={handleDownloadImage}
           className="final-download-btn"
         >
-          ⬇ Download Badge
+          ⬇ Save Badge
         </button>
       </div>
 
@@ -382,7 +402,7 @@ export default function App() {
               {/* Layer Selector Tabs */}
               <div className="tabs-wrapper">
                 <div className="tabs-container" ref={positionTabsRef}>
-                  {['global', 'eyes', 'mouth', 'hair', 'accessories', 'badge'].map(layer => (
+                  {['global', 'eyes', 'mouth', 'hair', 'accessories', 'badge', 'text'].map(layer => (
                     <button
                       key={layer}
                       onClick={() => setActivePositionLayer(layer)}
@@ -426,6 +446,27 @@ export default function App() {
                           />
                         </div>
                       </div>
+                    ))}
+                  </div>
+                ) : activePositionLayer === 'text' ? (
+                  <div className="badge-controls" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', overflowY: 'auto', alignContent: 'start', paddingBottom: '16px' }}>
+                    {BADGE_TEXT_COLORS.map(color => (
+                      <div
+                        key={color}
+                        role="button"
+                        tabIndex={0}
+                        className={`option-btn ${badgeTextColor === color ? 'selected' : ''}`}
+                        onClick={() => { setBadgeTextColor(color); animatePreview(); }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setBadgeTextColor(color);
+                            animatePreview();
+                          }
+                        }}
+                        style={{ backgroundColor: color }}
+                        title={`Text Color ${color}`}
+                      />
                     ))}
                   </div>
                 ) : (

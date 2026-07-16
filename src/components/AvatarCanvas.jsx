@@ -25,10 +25,11 @@ const loadImage = (path) => {
   });
 };
 
-const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, badgeHue, layerPositions, setLayerPositions, activePositionLayer, isPositioning, badgeOpacity = 1, avatarDevelopProgress = 1 }, ref) => {
+const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, badgeHue, layerPositions, setLayerPositions, activePositionLayer, isPositioning, badgeOpacity = 1, badgeTextColor = '#ffffff' }, ref) => {
   const mainCanvasRef = useRef(null);
   const loadedImagesRef = useRef(new Map());
   const tintedSkinCache = useRef({ color: null, canvas: null });
+  const tintedTextCache = useRef({ color: null, frame3: null, frame4: null });
   
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
@@ -38,7 +39,7 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
   useLayoutEffect(() => {
     layerPositionsRef.current = layerPositions;
     renderComposite();
-  }, [layerPositions, badgeOpacity, avatarDevelopProgress]);
+  }, [layerPositions, badgeOpacity]);
 
   useImperativeHandle(ref, () => ({
     getCanvas: () => mainCanvasRef.current
@@ -93,17 +94,8 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
       ctx.restore();
     }
 
-    // Apply developing photo effect if needed
-    if (avatarDevelopProgress < 1) {
-      // Very dark and slightly saturated when starting to develop
-      const brightness = Math.max(0.1, avatarDevelopProgress);
-      const contrast = 0.5 + (avatarDevelopProgress * 0.5);
-      const grayscale = 1 - avatarDevelopProgress;
-      ctx.filter = `brightness(${brightness}) contrast(${contrast}) grayscale(${grayscale})`;
-    } else {
-      // Reset filter for the avatar so it isn't colorized
-      ctx.filter = 'none';
-    }
+    // Reset filter before drawing the avatar so it doesn't get hue-rotated
+    ctx.filter = 'none';
 
     // 3. Draw Avatar (BEHIND frame2)
     sortedCategories.forEach(({ key }) => {
@@ -192,9 +184,31 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
       ctx.filter = 'none';
 
       const frame3 = loadedImagesRef.current.get('frame3');
-      if (frame3) ctx.drawImage(frame3, 0, 0, size, size);
-
       const frame4 = loadedImagesRef.current.get('frame4');
+
+      if (badgeTextColor && badgeTextColor !== '#ffffff') {
+        if (tintedTextCache.current.color !== badgeTextColor) {
+          const tintFrame = (img) => {
+            if (!img) return null;
+            const tCanvas = document.createElement('canvas');
+            tCanvas.width = img.width;
+            tCanvas.height = img.height;
+            const tCtx = tCanvas.getContext('2d');
+            tCtx.drawImage(img, 0, 0);
+            tCtx.globalCompositeOperation = 'source-in';
+            tCtx.fillStyle = badgeTextColor;
+            tCtx.fillRect(0, 0, img.width, img.height);
+            return tCanvas;
+          };
+          tintedTextCache.current.frame3 = tintFrame(frame3);
+          tintedTextCache.current.color = badgeTextColor;
+        }
+        if (tintedTextCache.current.frame3) ctx.drawImage(tintedTextCache.current.frame3, 0, 0, size, size);
+      } else {
+        if (frame3) ctx.drawImage(frame3, 0, 0, size, size);
+      }
+
+      // frame4 remains untinted
       if (frame4) ctx.drawImage(frame4, 0, 0, size, size);
       
       ctx.restore();
@@ -206,7 +220,7 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
     if (badgeOpacity > 0) {
       ctx.restore(); // Restore after clip
     }
-  }, [skinColor, badgeHue, badgeOpacity, avatarDevelopProgress]); // Added badgeOpacity and progress to dependencies
+  }, [skinColor, badgeHue, badgeOpacity, badgeTextColor]); 
 
   // Re-render when skin color toggles
   useEffect(() => {
