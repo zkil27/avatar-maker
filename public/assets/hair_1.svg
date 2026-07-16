@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Hair cap shape -->
+  <path d="M25,42 C25,14 75,14 75,42 C72,22 28,22 25,42 Z" fill="#3D2B1F"/>
+  <!-- Bangs -->
+  <path d="M30,32 C35,24 42,22 46,30" fill="#3D2B1F"/>
+  <path d="M42,28 C47,20 55,20 58,28" fill="#3D2B1F"/>
+  <path d="M54,30 C58,22 65,24 70,32" fill="#3D2B1F"/>
+  <!-- Side tufts -->
+  <path d="M26,38 C22,35 23,42 26,44" fill="#3D2B1F"/>
+  <path d="M74,38 C78,35 77,42 74,44" fill="#3D2B1F"/>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Cap crown -->
+  <path d="M28,28 C28,12 72,12 72,28 Z" fill="#2C3E50"/>
+  <!-- Cap brim -->
+  <path d="M25,28 L78,28 L82,32 L25,32 Z" fill="#34495E"/>
+  <!-- Cap button -->
+  <circle cx="50" cy="12" r="2.5" fill="#34495E"/>
+</svg>

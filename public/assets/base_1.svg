@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Body/shoulders -->
+  <path d="M18,100 C18,82 30,72 50,72 C70,72 82,82 82,100 Z" fill="#FFD5B8" stroke="#E0B89A" stroke-width="1"/>
+  <!-- Collar -->
+  <path d="M38,78 L50,85 L62,78" fill="none" stroke="#D4A08A" stroke-width="1" stroke-linecap="round"/>
+  <!-- Neck -->
+  <rect x="44" y="58" width="12" height="16" rx="3" fill="#FFD5B8"/>
+  <!-- Head -->
+  <circle cx="50" cy="38" r="25" fill="#FFD5B8" stroke="#E0B89A" stroke-width="1"/>
+  <!-- Ears -->
+  <ellipse cx="26" cy="40" rx="4" ry="5" fill="#FFD5B8" stroke="#E0B89A" stroke-width="1"/>
+  <ellipse cx="74" cy="40" rx="4" ry="5" fill="#FFD5B8" stroke="#E0B89A" stroke-width="1"/>
+  <ellipse cx="27" cy="40" rx="2" ry="3" fill="#FFBFA0"/>
+  <ellipse cx="73" cy="40" rx="2" ry="3" fill="#FFBFA0"/>
+  <!-- Cheek blush -->
+  <ellipse cx="36" cy="45" rx="5" ry="3" fill="#FFB5B5" opacity="0.4"/>
+  <ellipse cx="64" cy="45" rx="5" ry="3" fill="#FFB5B5" opacity="0.4"/>
+</svg>
