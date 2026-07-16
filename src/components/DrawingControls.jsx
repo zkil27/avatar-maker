@@ -17,6 +17,10 @@ export default function DrawingControls({
   drawingTool,
   setDrawingTool,
   onClear,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   onDone,
 }) {
   return (
@@ -36,6 +40,25 @@ export default function DrawingControls({
         </button>
         <button className="tool-btn" onClick={onClear} style={{ marginLeft: 'auto' }}>
           🗑 Clear
+        </button>
+      </div>
+      
+      <div className="drawing-tools" style={{ marginTop: '8px' }}>
+        <button
+          className="tool-btn"
+          onClick={onUndo}
+          disabled={!canUndo}
+          style={{ opacity: canUndo ? 1 : 0.5, cursor: canUndo ? 'pointer' : 'not-allowed' }}
+        >
+          ↶ Undo
+        </button>
+        <button
+          className="tool-btn"
+          onClick={onRedo}
+          disabled={!canRedo}
+          style={{ opacity: canRedo ? 1 : 0.5, cursor: canRedo ? 'pointer' : 'not-allowed' }}
+        >
+          ↷ Redo
         </button>
       </div>
 

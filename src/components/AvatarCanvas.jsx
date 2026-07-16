@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { CATEGORIES, CATEGORY_KEYS } from '../constants/categories';
 
 export const INITIAL_STATE = {
@@ -26,35 +26,23 @@ const loadImage = (path) => {
   });
 };
 
-const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, isDrawingMode, drawingColor, drawingSize, drawingTool, skinColor }, ref) => {
+const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, badgeHue, layerPositions, setLayerPositions, activePositionLayer, isPositioning }, ref) => {
   const mainCanvasRef = useRef(null);
-  const drawingCanvasRef = useRef(null); // Offscreen persistent drawing
-  const interactionCanvasRef = useRef(null); // On-screen overlay for capturing strokes
-
-  const isDrawing = useRef(false);
-  const lastPos = useRef({ x: 0, y: 0 });
   const loadedImagesRef = useRef(new Map());
   const tintedSkinCache = useRef({ color: null, canvas: null });
+  
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const layerPositionsRef = useRef(layerPositions);
 
-  // Initialize offscreen canvas
-  useEffect(() => {
-    const dCanvas = document.createElement('canvas');
-    const dpr = window.devicePixelRatio || 1;
-    dCanvas.width = 400 * dpr;
-    dCanvas.height = 400 * dpr;
-    drawingCanvasRef.current = dCanvas;
-  }, []);
+  // Keep ref in sync and redraw immediately without re-triggering the image loader
+  useLayoutEffect(() => {
+    layerPositionsRef.current = layerPositions;
+    renderComposite();
+  }, [layerPositions]);
 
   useImperativeHandle(ref, () => ({
-    getCanvas: () => mainCanvasRef.current,
-    clearDrawing: () => {
-      const dCanvas = drawingCanvasRef.current;
-      if (dCanvas) {
-        const ctx = dCanvas.getContext('2d');
-        ctx.clearRect(0, 0, dCanvas.width, dCanvas.height);
-        renderComposite();
-      }
-    }
+    getCanvas: () => mainCanvasRef.current
   }));
 
   const renderComposite = useCallback(() => {
@@ -70,25 +58,67 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, isDrawingMo
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.scale(dpr, dpr);
 
+    // Clip the canvas to a perfect circle so the exported image matches the preview exactly
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.clip();
+
     const sortedCategories = CATEGORY_KEYS
       .map(key => ({ key, ...CATEGORIES[key] }))
       .sort((a, b) => a.zIndex - b.zIndex);
 
+    // No more drawCentered function here, logic moved inside loop
+
+    // Apply badge hue rotation to the base frames
+    if (badgeHue) {
+      ctx.filter = `hue-rotate(${badgeHue}deg)`;
+    }
+
+    // 1. Draw frame backgrounds
+    const frame1 = loadedImagesRef.current.get('frame1');
+    if (frame1) ctx.drawImage(frame1, 0, 0, size, size);
+
+    // 2. Draw texture with soft-light ONLY over the background
+    const texture = loadedImagesRef.current.get('frame_texture');
+    if (texture) {
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.drawImage(texture, 0, 0, size, size);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // Reset filter for the avatar so it isn't colorized
+    ctx.filter = 'none';
+
+    // 3. Draw Avatar (BEHIND frame2)
     sortedCategories.forEach(({ key }) => {
       const img = loadedImagesRef.current.get(key);
-      const hidePremade = isDrawingMode && (key === 'eyes' || key === 'mouth');
       
-      if (img && !hidePremade) {
-        const scale = size / img.width;
-        const dw = size;
+      if (img) {
+        ctx.save();
+        
+        const layers = layerPositionsRef.current || {};
+        const globalPos = layers.global || { scale: 0.75, x: 0, y: 15, rotation: 0 };
+        const localPos = layers[key] || { scale: 1, x: 0, y: 0, rotation: 0 };
+        
+        const targetWidth = size * (globalPos.scale || 0.75) * (localPos.scale || 1);
+        const scale = targetWidth / img.width;
+        const dw = targetWidth;
         const dh = img.height * scale;
-        const dx = (size - dw) / 2;
-        let dy = 0;
-        if (dh > size) {
-           dy = (size - dh) * 0.15;
-        } else {
-           dy = (size - dh) / 2;
-        }
+        const dx = -dw / 2;
+        const dy = -dh / 2;
+
+        const globalDx = size * ((globalPos.x || 0) / 100);
+        const globalDy = size * ((globalPos.y !== undefined ? globalPos.y : 15) / 100);
+        const centerX = size / 2 + globalDx;
+        const centerY = size / 2 + globalDy;
+        
+        ctx.translate(centerX, centerY);
+        ctx.rotate((globalPos.rotation || 0) * Math.PI / 180);
+        
+        const localDx = size * ((localPos.x || 0) / 100) * (globalPos.scale || 0.75);
+        const localDy = size * ((localPos.y || 0) / 100) * (globalPos.scale || 0.75);
+        ctx.translate(localDx, localDy);
+        ctx.rotate((localPos.rotation || 0) * Math.PI / 180);
 
         if (key === 'skin' && skinColor && skinColor !== '#fadcbc') {
           if (tintedSkinCache.current.color !== skinColor || !tintedSkinCache.current.canvas) {
@@ -124,23 +154,36 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, isDrawingMo
         } else {
           ctx.drawImage(img, dx, dy, dw, dh);
         }
-      }
-
-      // Draw custom drawing layer right after 'eyes' (zIndex 4)
-      if (key === 'eyes' && drawingCanvasRef.current) {
-        // We draw the offscreen canvas which is already at DPR scale
-        // Since ctx is currently scaled by DPR, we need to draw it at size x size
-        ctx.drawImage(drawingCanvasRef.current, 0, 0, size, size);
+        
+        ctx.restore();
       }
     });
 
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-  }, [isDrawingMode, skinColor]);
+    // Re-apply hue rotation for the outer brown ring
+    if (badgeHue) {
+      ctx.filter = `hue-rotate(${badgeHue}deg)`;
+    }
 
-  // Re-render when drawing mode or skin color toggles
+    // 4. Draw overlays (frame2, frame3, frame4)
+    const frame2 = loadedImagesRef.current.get('frame2');
+    if (frame2) ctx.drawImage(frame2, 0, 0, size, size);
+
+    // Reset filter for the white overlays
+    ctx.filter = 'none';
+
+    const frame3 = loadedImagesRef.current.get('frame3');
+    if (frame3) ctx.drawImage(frame3, 0, 0, size, size);
+
+    const frame4 = loadedImagesRef.current.get('frame4');
+    if (frame4) ctx.drawImage(frame4, 0, 0, size, size);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }, [skinColor, badgeHue]); // Added badgeHue to dependencies
+
+  // Re-render when skin color toggles
   useEffect(() => {
     renderComposite();
-  }, [isDrawingMode, skinColor, renderComposite]);
+  }, [skinColor, renderComposite]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -166,6 +209,27 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, isDrawingMo
       return Promise.resolve();
     });
 
+    // Load static frame assets
+    const frameAssets = [
+      { key: 'frame1', path: '/assets/frame/frame1.png' },
+      { key: 'frame2', path: '/assets/frame/frame2.png' },
+      { key: 'frame3', path: '/assets/frame/frame3.png' },
+      { key: 'frame4', path: '/assets/frame/frame4.png' },
+      { key: 'frame_texture', path: '/assets/frame/Texturelabs_Fabric_195L 1.png' },
+    ];
+    
+    frameAssets.forEach(({ key, path }) => {
+      loadPromises.push(
+        loadImage(path)
+          .then(img => {
+            if (isCurrent) loadedImagesRef.current.set(key, img);
+          })
+          .catch(() => {
+            if (isCurrent) loadedImagesRef.current.set(key, null);
+          })
+      );
+    });
+
     Promise.all(loadPromises).then(() => {
       if (!isCurrent) return;
       renderComposite();
@@ -175,183 +239,69 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, isDrawingMo
     return () => { isCurrent = false; };
   }, [selectedOptions, onLoadingChange, renderComposite]);
 
-  // Drawing event handlers
-  const getCoords = (e) => {
-    const canvas = interactionCanvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-
-    return {
-      x: ((e.clientX - rect.left) / rect.width) * 400 * dpr,
-      y: ((e.clientY - rect.top) / rect.height) * 400 * dpr
-    };
-  };
-
-  const magnifierCanvasRef = useRef(null);
-
-  const updateMagnifier = (pos) => {
-    const mCanvas = magnifierCanvasRef.current;
-    const sourceCanvas = mainCanvasRef.current;
-    if (!mCanvas || !sourceCanvas) return;
-
-    const mCtx = mCanvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const magSize = 100 * dpr;
-    const zoom = 2; // 2x zoom
-    
-    mCanvas.width = magSize;
-    mCanvas.height = magSize;
-
-    mCtx.save();
-    mCtx.clearRect(0, 0, magSize, magSize);
-    
-    // pos.x and pos.y are in the 400*dpr coordinate space
-    const sourceWidth = magSize / zoom;
-    const sourceHeight = magSize / zoom;
-    const sx = pos.x - sourceWidth / 2;
-    const sy = pos.y - sourceHeight / 2;
-
-    mCtx.beginPath();
-    mCtx.arc(magSize/2, magSize/2, magSize/2, 0, Math.PI * 2);
-    mCtx.clip();
-
-    // Fill white background in case of transparency
-    mCtx.fillStyle = '#fff';
-    mCtx.fill();
-
-    mCtx.drawImage(
-      sourceCanvas,
-      sx, sy, sourceWidth, sourceHeight,
-      0, 0, magSize, magSize
-    );
-    mCtx.restore();
-    
-    // Draw crosshair (outside clip so it touches the border)
-    mCtx.strokeStyle = 'rgba(0,0,0,0.3)';
-    mCtx.lineWidth = 1 * dpr;
-    mCtx.beginPath();
-    mCtx.moveTo(magSize/2, 0);
-    mCtx.lineTo(magSize/2, magSize);
-    mCtx.moveTo(0, magSize/2);
-    mCtx.lineTo(magSize, magSize/2);
-    mCtx.stroke();
-
-    // Position magnifier away from finger
-    if (pos.x > 200 * dpr) {
-      mCanvas.style.left = '10px';
-      mCanvas.style.right = 'auto';
-    } else {
-      mCanvas.style.right = '10px';
-      mCanvas.style.left = 'auto';
-    }
-  };
-
-  const handlePointerDown = (e) => {
-    if (!isDrawingMode) return;
-    e.preventDefault();
-    isDrawing.current = true;
-    lastPos.current = getCoords(e);
-    if (magnifierCanvasRef.current) magnifierCanvasRef.current.style.display = 'block';
-    updateMagnifier(lastPos.current);
-  };
-
-  const handlePointerMove = (e) => {
-    if (!isDrawing.current || !isDrawingMode) return;
-    e.preventDefault();
-    const newPos = getCoords(e);
-    
-    const dCanvas = drawingCanvasRef.current;
-    const ctx = dCanvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-
-    ctx.beginPath();
-    ctx.moveTo(lastPos.current.x, lastPos.current.y);
-    ctx.lineTo(newPos.x, newPos.y);
-    ctx.strokeStyle = drawingTool === 'eraser' ? '#000' : drawingColor;
-    ctx.lineWidth = drawingSize * dpr;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    if (drawingTool === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out';
-    } else {
-      ctx.globalCompositeOperation = 'source-over';
-    }
-    
-    ctx.stroke();
-    
-    lastPos.current = newPos;
-    renderComposite();
-    updateMagnifier(newPos);
-  };
-
-  const handlePointerUp = () => {
-    isDrawing.current = false;
-    if (magnifierCanvasRef.current) magnifierCanvasRef.current.style.display = 'none';
-  };
-
-  // Sync interaction canvas size and prevent native scrolling
-  useEffect(() => {
-    const iCanvas = interactionCanvasRef.current;
-    if (iCanvas) {
-      const dpr = window.devicePixelRatio || 1;
-      iCanvas.width = 400 * dpr;
-      iCanvas.height = 400 * dpr;
-      
-      const preventScroll = (e) => e.preventDefault();
-      iCanvas.addEventListener('touchmove', preventScroll, { passive: false });
-      return () => iCanvas.removeEventListener('touchmove', preventScroll);
-    }
-  }, []);
-
   const activeLayersStr = CATEGORY_KEYS
     .map(key => `${key}:${selectedOptions[key] || 'none'}`)
     .join(',');
 
+  const handlePointerDown = (e) => {
+    if (!isPositioning) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    e.target.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging.current || !isPositioning) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    
+    // Convert screen pixel movement to actual canvas coordinate percentages
+    const rect = e.target.getBoundingClientRect();
+    const scaleX = 400 / rect.width;
+    const scaleY = 400 / rect.height;
+    
+    // Since 1% = 4px on a 400x400 canvas, we divide by 4 to get percentage offset
+    setLayerPositions(prev => {
+      const layer = activePositionLayer || 'global';
+      const current = prev[layer] || { x: 0, y: 0, scale: 1, rotation: 0 };
+      const scaleAdjustment = layer === 'global' ? 1 : (prev.global?.scale || 0.75);
+      
+      return {
+        ...prev,
+        [layer]: {
+          ...current,
+          x: current.x + (dx * scaleX) / (4 * scaleAdjustment),
+          y: current.y + (dy * scaleY) / (4 * scaleAdjustment)
+        }
+      };
+    });
+  };
+
+  const handlePointerUp = (e) => {
+    if (!isPositioning) return;
+    isDragging.current = false;
+    e.target.releasePointerCapture(e.pointerId);
+  };
+
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <canvas
-        ref={mainCanvasRef}
-        data-testid="avatar-canvas"
-        data-active-layers={activeLayersStr}
-        style={{ width: '100%', height: '100%', display: 'block' }}
-      />
-      <canvas
-        ref={interactionCanvasRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          display: 'block',
-          pointerEvents: isDrawingMode ? 'auto' : 'none',
-          touchAction: 'none'
-        }}
-      />
-      <canvas
-        ref={magnifierCanvasRef}
-        style={{
-          position: 'absolute',
-          top: '10px',
-          width: '80px',
-          height: '80px',
-          borderRadius: '50%',
-          border: '3px solid var(--text-accent, #7AADCA)',
-          backgroundColor: '#fff',
-          pointerEvents: 'none',
-          display: 'none',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          zIndex: 20,
-          transition: 'left 0.15s ease, right 0.15s ease',
-        }}
-      />
-    </div>
+    <canvas 
+      ref={mainCanvasRef} 
+      width={400} 
+      height={400} 
+      data-testid="avatar-canvas" 
+      data-active-layers={activeLayersStr}
+      style={{ 
+        width: '100%', 
+        height: 'auto',
+        cursor: isPositioning ? 'grab' : 'default',
+        touchAction: isPositioning ? 'none' : 'auto'
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    />
   );
 });
 
