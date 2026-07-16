@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <!-- Long hair sides -->
-  <path d="M24,30 C20,28 18,55 22,75 C24,68 26,50 26,42" fill="#8B4513"/>
-  <path d="M76,30 C80,28 82,55 78,75 C76,68 74,50 74,42" fill="#8B4513"/>
-  <!-- Hair cap -->
-  <path d="M25,42 C25,14 75,14 75,42 C72,22 28,22 25,42 Z" fill="#8B4513"/>
-  <!-- Bangs - straight cut -->
-  <rect x="30" y="25" width="40" height="8" rx="3" fill="#8B4513"/>
-</svg>

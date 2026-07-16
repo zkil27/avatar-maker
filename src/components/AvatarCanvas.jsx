@@ -25,7 +25,7 @@ const loadImage = (path) => {
   });
 };
 
-const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, badgeHue, layerPositions, setLayerPositions, activePositionLayer, isPositioning }, ref) => {
+const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, badgeHue, layerPositions, setLayerPositions, activePositionLayer, isPositioning, badgeOpacity = 1, avatarDevelopProgress = 1 }, ref) => {
   const mainCanvasRef = useRef(null);
   const loadedImagesRef = useRef(new Map());
   const tintedSkinCache = useRef({ color: null, canvas: null });
@@ -38,7 +38,7 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
   useLayoutEffect(() => {
     layerPositionsRef.current = layerPositions;
     renderComposite();
-  }, [layerPositions]);
+  }, [layerPositions, badgeOpacity, avatarDevelopProgress]);
 
   useImperativeHandle(ref, () => ({
     getCanvas: () => mainCanvasRef.current
@@ -57,10 +57,13 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.scale(dpr, dpr);
 
-    // Clip the canvas to a perfect circle so the exported image matches the preview exactly
-    ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-    ctx.clip();
+    // Clip the canvas to a perfect circle ONLY if the badge is visible
+    if (badgeOpacity > 0) {
+      ctx.save(); // Save before clip
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.clip();
+    }
 
     const sortedCategories = CATEGORY_KEYS
       .map(key => ({ key, ...CATEGORIES[key] }))
@@ -73,20 +76,34 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
       ctx.filter = `hue-rotate(${badgeHue}deg)`;
     }
 
-    // 1. Draw frame backgrounds
-    const frame1 = loadedImagesRef.current.get('frame1');
-    if (frame1) ctx.drawImage(frame1, 0, 0, size, size);
+    if (badgeOpacity > 0) {
+      ctx.save();
+      ctx.globalAlpha = badgeOpacity;
+      // 1. Draw frame backgrounds
+      const frame1 = loadedImagesRef.current.get('frame1');
+      if (frame1) ctx.drawImage(frame1, 0, 0, size, size);
 
-    // 2. Draw texture with soft-light ONLY over the background
-    const texture = loadedImagesRef.current.get('frame_texture');
-    if (texture) {
-      ctx.globalCompositeOperation = 'soft-light';
-      ctx.drawImage(texture, 0, 0, size, size);
-      ctx.globalCompositeOperation = 'source-over';
+      // 2. Draw texture with soft-light ONLY over the background
+      const texture = loadedImagesRef.current.get('frame_texture');
+      if (texture) {
+        ctx.globalCompositeOperation = 'soft-light';
+        ctx.drawImage(texture, 0, 0, size, size);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.restore();
     }
 
-    // Reset filter for the avatar so it isn't colorized
-    ctx.filter = 'none';
+    // Apply developing photo effect if needed
+    if (avatarDevelopProgress < 1) {
+      // Very dark and slightly saturated when starting to develop
+      const brightness = Math.max(0.1, avatarDevelopProgress);
+      const contrast = 0.5 + (avatarDevelopProgress * 0.5);
+      const grayscale = 1 - avatarDevelopProgress;
+      ctx.filter = `brightness(${brightness}) contrast(${contrast}) grayscale(${grayscale})`;
+    } else {
+      // Reset filter for the avatar so it isn't colorized
+      ctx.filter = 'none';
+    }
 
     // 3. Draw Avatar (BEHIND frame2)
     sortedCategories.forEach(({ key }) => {
@@ -158,26 +175,38 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
       }
     });
 
-    // Re-apply hue rotation for the outer brown ring
-    if (badgeHue) {
-      ctx.filter = `hue-rotate(${badgeHue}deg)`;
+    if (badgeOpacity > 0) {
+      ctx.save();
+      ctx.globalAlpha = badgeOpacity;
+      
+      // Re-apply hue rotation for the outer brown ring
+      if (badgeHue) {
+        ctx.filter = `hue-rotate(${badgeHue}deg)`;
+      }
+
+      // 4. Draw overlays (frame2, frame3, frame4)
+      const frame2 = loadedImagesRef.current.get('frame2');
+      if (frame2) ctx.drawImage(frame2, 0, 0, size, size);
+
+      // Reset filter for the white overlays
+      ctx.filter = 'none';
+
+      const frame3 = loadedImagesRef.current.get('frame3');
+      if (frame3) ctx.drawImage(frame3, 0, 0, size, size);
+
+      const frame4 = loadedImagesRef.current.get('frame4');
+      if (frame4) ctx.drawImage(frame4, 0, 0, size, size);
+      
+      ctx.restore();
     }
 
-    // 4. Draw overlays (frame2, frame3, frame4)
-    const frame2 = loadedImagesRef.current.get('frame2');
-    if (frame2) ctx.drawImage(frame2, 0, 0, size, size);
-
-    // Reset filter for the white overlays
-    ctx.filter = 'none';
-
-    const frame3 = loadedImagesRef.current.get('frame3');
-    if (frame3) ctx.drawImage(frame3, 0, 0, size, size);
-
-    const frame4 = loadedImagesRef.current.get('frame4');
-    if (frame4) ctx.drawImage(frame4, 0, 0, size, size);
-
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-  }, [skinColor, badgeHue]); // Added badgeHue to dependencies
+
+    // Restore the canvas state to remove the clip
+    if (badgeOpacity > 0) {
+      ctx.restore(); // Restore after clip
+    }
+  }, [skinColor, badgeHue, badgeOpacity, avatarDevelopProgress]); // Added badgeOpacity and progress to dependencies
 
   // Re-render when skin color toggles
   useEffect(() => {

@@ -30,6 +30,15 @@ export default function CustomizationControls({ selectedOptions, onChange, skinC
     }
   };
 
+  // Block scroll wheel on tabs - must be non-passive to allow preventDefault
+  React.useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    const block = (e) => e.preventDefault();
+    el.addEventListener('wheel', block, { passive: false });
+    return () => el.removeEventListener('wheel', block);
+  }, []);
+
   return (
     <div data-testid="customization-controls" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* Category tabs */}
@@ -47,54 +56,10 @@ export default function CustomizationControls({ selectedOptions, onChange, skinC
               {CATEGORIES[key].name}
             </button>
           ))}
-          <button
-            role="tab"
-            aria-selected={activeCategory === 'badge'}
-            onClick={(e) => handleTabClick('badge', e)}
-            className={`tab-btn ${activeCategory === 'badge' ? 'active' : ''}`}
-          >
-            Badge
-          </button>
         </div>
       </div>
 
-      {activeCategory === 'badge' ? (
-        <div className="badge-controls" style={{ padding: '16px 4px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', overflowY: 'auto' }}>
-          {BADGE_HUES.map(hue => (
-            <button
-              key={hue}
-              onClick={() => onBadgeHueChange(hue)}
-              style={{
-                width: '100%',
-                aspectRatio: '1',
-                minHeight: '60px',
-                borderRadius: '50%',
-                border: badgeHue === hue ? '3.5px solid var(--primary-color)' : '2px solid var(--border-light)',
-                backgroundColor: '#fff',
-                padding: '4px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                boxShadow: badgeHue === hue ? '0 4px 12px rgba(0,0,0,0.1)' : '0 2px 0 var(--border-light)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden'
-              }}
-              title={`Hue ${hue}°`}
-            >
-              <div style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: '50%',
-                background: 'url(/assets/frame/frame1.png) center/cover',
-                filter: `hue-rotate(${hue}deg)`
-              }} />
-            </button>
-          ))}
-        </div>
-      ) : (
-
-      <div className="options-grid" style={{ marginTop: '12px' }}>
+      <div className="options-grid">
         {CATEGORIES[activeCategory].options.map(option => {
           const isSelected = selectedOptions[activeCategory] === option.id;
           return (
@@ -139,7 +104,6 @@ export default function CustomizationControls({ selectedOptions, onChange, skinC
           );
         })}
       </div>
-      )}
     </div>
   );
 }
