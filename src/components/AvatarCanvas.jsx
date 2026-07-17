@@ -3,13 +3,14 @@ import { CATEGORIES, CATEGORY_KEYS } from '../constants/categories';
 
 export const INITIAL_STATE = {
   skin: 'skin_1',
-  facial_kineme: 'none',
   eyes: 'eyes_1',
   mouth: 'mouth_1',
   hair_back: 'none',
   clothes: 'clothes_1',
   hair_bangs: 'none',
-  accessories: 'none',
+  accessories_1: 'none',
+  accessories_2: 'none',
+  accessories_3: 'none',
 };
 
 const imageCache = new Map();
@@ -27,10 +28,13 @@ const loadImage = (path) => {
   });
 };
 
-const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, badgeHue, layerPositions, setLayerPositions, activePositionLayer, isPositioning, badgeOpacity = 1, badgeTextColor = '#ffffff' }, ref) => {
+const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, hairColor, clothesColor, badgeHue, layerPositions, setLayerPositions, activePositionLayer, isPositioning, badgeOpacity = 1, badgeTextColor = '#ffffff' }, ref) => {
   const mainCanvasRef = useRef(null);
   const loadedImagesRef = useRef(new Map());
-  const tintedSkinCache = useRef({ color: null, canvas: null });
+  const tintedSkinCache = useRef({ color: null, canvas: null, originalSrc: null });
+  const tintedHairBackCache = useRef({ color: null, canvas: null, originalSrc: null });
+  const tintedHairBangsCache = useRef({ color: null, canvas: null, originalSrc: null });
+  const tintedClothesCache = useRef({ color: null, canvas: null, originalSrc: null });
   const tintedTextCache = useRef({ color: null, frame3: null, frame4: null });
   
   const isDragging = useRef(false);
@@ -41,7 +45,7 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
   useLayoutEffect(() => {
     layerPositionsRef.current = layerPositions;
     renderComposite();
-  }, [layerPositions, badgeOpacity]);
+  }, [layerPositions, badgeOpacity, skinColor, hairColor, clothesColor, badgeHue, badgeTextColor]);
 
   useImperativeHandle(ref, () => ({
     getCanvas: () => mainCanvasRef.current
@@ -130,8 +134,21 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
         ctx.translate(localDx, localDy);
         ctx.rotate((localPos.rotation || 0) * Math.PI / 180);
 
-        if (key === 'skin' && skinColor && skinColor !== '#fadcbc') {
-          if (tintedSkinCache.current.color !== skinColor || !tintedSkinCache.current.canvas) {
+        let layerToDraw = img;
+        
+        if ((key === 'skin' && skinColor && skinColor !== 'none') ||
+            (key === 'hair_back' && hairColor && hairColor !== 'none') ||
+            (key === 'hair_bangs' && hairColor && hairColor !== 'none') ||
+            (key === 'clothes' && clothesColor && clothesColor !== 'none')) {
+          
+          let cacheRef;
+          let targetColor;
+          if (key === 'skin') { cacheRef = tintedSkinCache; targetColor = skinColor; }
+          else if (key === 'hair_back') { cacheRef = tintedHairBackCache; targetColor = hairColor; }
+          else if (key === 'hair_bangs') { cacheRef = tintedHairBangsCache; targetColor = hairColor; }
+          else if (key === 'clothes') { cacheRef = tintedClothesCache; targetColor = clothesColor; }
+          
+          if (cacheRef.current.color !== targetColor || !cacheRef.current.canvas || cacheRef.current.originalSrc !== img.src) {
             const tCanvas = document.createElement('canvas');
             tCanvas.width = img.width;
             tCanvas.height = img.height;
@@ -140,30 +157,37 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
             
             const imgData = tCtx.getImageData(0, 0, img.width, img.height);
             const data = imgData.data;
-            const hex = skinColor;
+            const hex = targetColor;
             const tr = parseInt(hex.slice(1,3), 16);
             const tg = parseInt(hex.slice(3,5), 16);
             const tb = parseInt(hex.slice(5,7), 16);
 
+            const threshold = key === 'skin' ? 60 : 15;
             for (let i = 0; i < data.length; i += 4) {
               if (data[i+3] > 0) {
                 const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
-                if (brightness > 60) {
-                  const factor = Math.min(1, brightness / 235);
-                  data[i] = tr * factor;
-                  data[i+1] = tg * factor;
-                  data[i+2] = tb * factor;
+                if (brightness > threshold) {
+                  // Normalize factor based on typical asset brightness to preserve both shadows and highlights
+                  let normBase = 130;
+                  if (key === 'skin') normBase = 235;
+                  else if (key === 'clothes') normBase = 235;
+                  
+                  const factor = brightness / normBase;
+                  data[i] = Math.min(255, tr * factor);
+                  data[i+1] = Math.min(255, tg * factor);
+                  data[i+2] = Math.min(255, tb * factor);
                 }
               }
             }
             tCtx.putImageData(imgData, 0, 0);
-            tintedSkinCache.current.color = skinColor;
-            tintedSkinCache.current.canvas = tCanvas;
+            cacheRef.current.color = targetColor;
+            cacheRef.current.canvas = tCanvas;
+            cacheRef.current.originalSrc = img.src;
           }
-          ctx.drawImage(tintedSkinCache.current.canvas, dx, dy, dw, dh);
-        } else {
-          ctx.drawImage(img, dx, dy, dw, dh);
+          layerToDraw = cacheRef.current.canvas;
         }
+
+        ctx.drawImage(layerToDraw, dx, dy, dw, dh);
         
         ctx.restore();
       }
@@ -222,7 +246,7 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
     if (badgeOpacity > 0) {
       ctx.restore(); // Restore after clip
     }
-  }, [skinColor, badgeHue, badgeOpacity, badgeTextColor]); 
+  }, [skinColor, hairColor, clothesColor, badgeHue, badgeOpacity, badgeTextColor]); 
 
   // Re-render when skin color toggles
   useEffect(() => {

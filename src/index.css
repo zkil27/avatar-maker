@@ -927,7 +927,27 @@ body {
 
 .tutorial-dots {
   display: flex;
+  gap: 5px;
+}
+
+.hair-palette-container {
+  overflow: hidden;
+  height: 0;
+  opacity: 0;
+}
+
+.hair-palette {
+  display: flex;
   gap: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  flex: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hair-palette::-webkit-scrollbar {
+  display: none;
 }
 
 .tutorial-dot {

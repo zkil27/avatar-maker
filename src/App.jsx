@@ -15,18 +15,21 @@ const BADGE_TEXT_COLORS = ['#ffffff', '#000000', '#fadcbc', '#e4c653', '#b3391b'
 export default function App() {
   const [selectedOptions, setSelectedOptions] = useState(INITIAL_STATE);
   const [skinColor, setSkinColor] = useState('#fadcbc'); // Default beige skin tone
+  const [hairColor, setHairColor] = useState('#222222'); // Default dark hair
+  const [clothesColor, setClothesColor] = useState('#ffffff'); // Default white clothes
   const [badgeHue, setBadgeHue] = useState(0); // 0 to 360 hue rotation
   const [badgeTextColor, setBadgeTextColor] = useState('#ffffff'); // Text overlay color
   const DEFAULT_LAYER_POSITIONS = {
     global: { x: 0, y: 15, scale: 0.75, rotation: 0 },
     skin: { x: 0, y: 0, scale: 1, rotation: 0 },
-    facial_kineme: { x: 0, y: 0, scale: 1, rotation: 0 },
     eyes: { x: 0, y: 0, scale: 1, rotation: 0 },
     mouth: { x: 0, y: 0, scale: 1, rotation: 0 },
     hair_back: { x: 0, y: 0, scale: 1, rotation: 0 },
     clothes: { x: 0, y: 0, scale: 1, rotation: 0 },
     hair_bangs: { x: 0, y: 0, scale: 1, rotation: 0 },
-    accessories: { x: 0, y: 0, scale: 1, rotation: 0 }
+    accessories_1: { x: 0, y: 0, scale: 1, rotation: 0 },
+    accessories_2: { x: 0, y: 0, scale: 1, rotation: 0 },
+    accessories_3: { x: 0, y: 0, scale: 1, rotation: 0 }
   };
 
   const [layerPositions, setLayerPositions] = useState(DEFAULT_LAYER_POSITIONS);
@@ -331,11 +334,13 @@ export default function App() {
               }}
             >
               {appState !== 'finished' && (
-                <AvatarCanvas
+                <AvatarCanvas 
                   ref={canvasRef}
-                  selectedOptions={selectedOptions}
+                  selectedOptions={selectedOptions} 
                   onLoadingChange={setIsLoading}
                   skinColor={skinColor}
+                  hairColor={hairColor}
+                  clothesColor={clothesColor}
                   badgeHue={badgeHue}
                   badgeOpacity={badgeOpacity}
                   badgeTextColor={badgeTextColor}
@@ -386,6 +391,10 @@ export default function App() {
             setActiveCategory={setActiveCategory}
             skinColor={skinColor}
             onSkinColorChange={setSkinColor}
+            hairColor={hairColor}
+            onHairColorChange={setHairColor}
+            clothesColor={clothesColor}
+            onClothesColorChange={setClothesColor}
             badgeHue={badgeHue}
             onBadgeHueChange={(hue) => { setBadgeHue(hue); animatePreview(); }}
             badgeTextColor={badgeTextColor}
