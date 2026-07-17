@@ -38,6 +38,7 @@ export default function App() {
   const [appState, setAppState] = useState('editing'); // 'editing', 'saving', 'finished'
   const [badgeImageURL, setBadgeImageURL] = useState(null);
   const [badgeOpacity, setBadgeOpacity] = useState(1);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const isInitialMount = useRef(true);
   const downloadingRef = useRef(false);
   const canvasRef = useRef(null);
@@ -49,6 +50,7 @@ export default function App() {
   const mainCardRef = useRef(null);
   const finalBtnRef = useRef(null);
   const shockwaveRef = useRef(null);
+  const fabRef = useRef(null);
 
   const { contextSafe } = useGSAP({ scope: containerRef });
 
@@ -60,10 +62,9 @@ export default function App() {
     // Make the badge larger (up to 1.6x) so it's not tiny on big screens
     const scale = Math.min(1.6, (H * 0.4) / (28 * vh)); 
     
-    let targetVisualBottom = H - 340;
-    if (bottomPanelRef.current) {
-      targetVisualBottom = bottomPanelRef.current.getBoundingClientRect().top;
-    }
+    // The bottom panel has a fixed height of 58vh.
+    // When it's open, its top edge is at 42vh (H - 0.58*H).
+    const targetVisualBottom = H - (0.58 * H);
     
     // Perfectly center the badge in the empty brown space above the panel
     const emptySpaceCenter = targetVisualBottom / 2;
@@ -99,6 +100,44 @@ export default function App() {
     }
   }, [appState]);
 
+  useGSAP(() => {
+    if (appState !== 'editing' || isInitialMount.current) return;
+
+    if (isFocusMode) {
+      gsap.to(bottomPanelRef.current, { y: '100%', duration: 0.5, ease: 'power3.inOut' });
+      gsap.to(fabRef.current, { y: '58vh', duration: 0.5, ease: 'power3.inOut' });
+      
+      const H = window.innerHeight;
+      const W = window.innerWidth;
+      const vh = H / 100;
+      const baseSizePx = 28 * vh;
+      const targetSize = Math.min(W, H) * 0.9; 
+      const scale = targetSize / baseSizePx;
+      
+      // Use the same coordinate system math as getBadgeProps to center it vertically on the whole screen
+      const emptySpaceCenter = H / 2;
+      const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
+      const targetY = requiredLocalCenter - 24 - (14 * vh);
+      
+      gsap.to(previewContainerRef.current, {
+        scale: scale,
+        y: targetY,
+        duration: 0.5,
+        ease: 'power3.inOut'
+      });
+    } else {
+      gsap.to(bottomPanelRef.current, { y: '0%', duration: 0.5, ease: 'power3.inOut' });
+      gsap.to(fabRef.current, { y: 0, duration: 0.5, ease: 'power3.inOut' });
+      const { scale, y } = getBadgeProps();
+      gsap.to(previewContainerRef.current, {
+        scale: scale,
+        y: y,
+        duration: 0.5,
+        ease: 'power3.inOut'
+      });
+    }
+  }, [isFocusMode]);
+
   const handleChange = (category, optionId) => {
     setSelectedOptions(prev => ({
       ...prev,
@@ -133,133 +172,99 @@ export default function App() {
     if (isLoading || downloadingRef.current || appState !== 'editing') return;
     
     // Capture the 2D badge image BEFORE starting animations
-    // Convert to Blob instead of Data URL to prevent mobile WebView crashes
+    // Use base64 (toDataURL) instead of Blob URL, because in-app browsers
+    // (like Messenger or Instagram) often crash when trying to open/download blob URLs.
     const canvas = document.querySelector('[data-testid="avatar-canvas"]');
     if (canvas) {
-      canvas.toBlob((blob) => {
-        if (blob) setBadgeImageURL(URL.createObjectURL(blob));
-      }, 'image/png');
+      setBadgeImageURL(canvas.toDataURL('image/png'));
     }
 
     setAppState('saving');
 
     const tl = gsap.timeline();
 
-    // 1. UI Drop-away
+    // 1. UI Drop-away smoothly
     tl.to(bottomPanelRef.current, {
       y: '100%',
-      duration: 0.5,
-      ease: 'back.in(1.2)'
+      duration: 0.8,
+      ease: 'power3.inOut'
     });
 
-    // 2. Scale badge WAY up (Zoom out) and tilt it
-    tl.to(previewContainerRef.current, {
-      scale: 2.5,
-      y: '-20vh',
-      rotationZ: 15,
-      duration: 0.6,
-      ease: 'power2.out'
-    }, "-=0.3");
+    // 2. Smoothly float to the exact center of the screen
+    const H = window.innerHeight;
+    const vh = H / 100;
+    const emptySpaceCenter = H / 2;
+    const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
+    const targetY = requiredLocalCenter - 24 - (14 * vh);
 
-    // 3. THE SLAM! (Smash it down into the center)
     tl.to(previewContainerRef.current, {
-      scale: 1.2,
-      y: 0,
+      scale: 1.4,
+      y: targetY,
       rotationZ: 0,
-      duration: 0.3,
-      ease: 'back.out(1.5)',
+      duration: 1.2,
+      ease: 'expo.inOut',
       onComplete: () => {
         setAppState('finished');
-        // Screen shake
-        gsap.to(containerRef.current, {
-          y: 'random(-10, 10)',
-          x: 'random(-10, 10)',
-          duration: 0.05,
-          yoyo: true,
-          repeat: 5,
-          onComplete: () => gsap.set(containerRef.current, { clearProps: 'all' })
-        });
       }
-    });
+    }, "-=0.6");
 
-    // Move the wrapper down to center it on screen vertically
+    // Clear any leftover wrapper translations
     tl.to(cardWrapperRef.current, {
-      y: '22vh',
-      duration: 0.3,
-      ease: 'power2.out'
+      y: 0,
+      duration: 0.5
     }, "<");
 
-    // 5. Expand and fade the shockwave
-    tl.fromTo(shockwaveRef.current,
-      { scale: 0.5, opacity: 1 },
-      { scale: 6, opacity: 0, duration: 0.8, ease: 'power2.out' },
-      "<" // Start at the same time as the slam finishes
-    );
-
-    // 6. Drop in the "Save Badge" button
+    // 3. Make the Save button pop in playfully!
     tl.fromTo(finalBtnRef.current, 
-      { autoAlpha: 0, scale: 0.5, rotationZ: -10, y: 30 },
-      { autoAlpha: 1, scale: 1, rotationZ: 0, y: 0, duration: 0.8, ease: 'elastic.out(1.2, 0.4)' },
-      "-=0.3"
+      { autoAlpha: 0, scale: 0.4, y: 40, rotationZ: -8 },
+      { autoAlpha: 1, scale: 1, y: 0, rotationZ: 0, duration: 0.8, ease: 'back.out(1.7)' },
+      "-=0.4"
     );
   });
 
   const handleDownloadImage = async () => {
-    if (downloadingRef.current) return;
+    if (downloadingRef.current || !badgeImageURL) return;
     
     downloadingRef.current = true;
     setTimeout(() => { downloadingRef.current = false; }, 1000);
 
     try {
-      let blob = null;
-      if (badgeImageURL && badgeImageURL.startsWith('blob:')) {
-        // badgeImageURL is already a Blob URL
-        const response = await fetch(badgeImageURL);
-        blob = await response.blob();
-      } else {
-        // Fallback
-        const canvas = document.querySelector('[data-testid="avatar-canvas"]');
-        if (canvas) {
-          blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        }
-      }
-      
-      if (!blob) return;
-
-      // 2. Try Web Share API (Best for mobile/FB in-app browsers)
+      // 1. Try Web Share API (Best for mobile if fully supported)
       if (navigator.share) {
-        const file = new File([blob], 'my-camper-id.png', { type: 'image/png' });
-        // Check if the browser supports sharing files
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
+        try {
+          // Convert base64 data URL to blob for sharing
+          const fetchRes = await fetch(badgeImageURL);
+          const blob = await fetchRes.blob();
+          const file = new File([blob], 'my-camper-id.png', { type: 'image/png' });
+          
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
               title: 'My Avatar ID',
             });
-            return; // Success, user shared or saved via native dialog
-          } catch (shareError) {
-            // Ignore AbortError (user cancelled)
-            if (shareError.name === 'AbortError') return;
-            console.error('Share failed, falling back to download:', shareError);
+            return; // Success!
           }
+        } catch (shareError) {
+          if (shareError.name === 'AbortError') return;
+          console.error('Share failed, falling back:', shareError);
         }
       }
 
-      // 3. Fallback to Object URL download
-      const blobUrl = URL.createObjectURL(blob);
+      // 2. Fallback to standard download with base64 Data URL
+      // Data URLs are much safer in in-app browsers than Blob URLs
       const link = document.createElement('a');
       link.download = 'my-camper-id.png';
-      link.href = blobUrl;
+      link.href = badgeImageURL;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      // Clean up the object URL to free memory
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+      // 3. Inform user of the universal fallback
+      alert("Downloading... If nothing happens, you can simply long-press (or right-click) the badge to save it!");
       
     } catch (error) {
       console.error('Download/Share failed:', error);
-      alert('Unable to save. If you are inside an app like Facebook, please tap the menu and choose "Open in Browser".');
+      alert("To save your badge, simply long-press (or right-click) the image!");
     }
   };
 
@@ -322,64 +327,89 @@ export default function App() {
 
           <div style={{ position: 'relative', margin: '0 auto 4px', zIndex: 10, display: 'inline-block' }}>
             <div className="shockwave" ref={shockwaveRef}></div>
-            <div 
-              className="preview-container" 
-              ref={previewContainerRef}
-              style={{
-                background: `rgba(255, 255, 255, ${badgeOpacity})`,
-                borderColor: `rgba(44, 53, 41, ${badgeOpacity})`,
-                boxShadow: badgeOpacity > 0 ? 'var(--shadow-inset)' : 'none',
-                overflow: badgeOpacity > 0 && appState !== 'finished' ? 'hidden' : 'visible',
-                borderRadius: badgeOpacity > 0 ? '50%' : '0'
-              }}
-            >
-              {appState !== 'finished' && (
-                <AvatarCanvas 
-                  ref={canvasRef}
-                  selectedOptions={selectedOptions} 
-                  onLoadingChange={setIsLoading}
-                  skinColor={skinColor}
-                  hairColor={hairColor}
-                  clothesColor={clothesColor}
-                  badgeHue={badgeHue}
-                  badgeOpacity={badgeOpacity}
-                  badgeTextColor={badgeTextColor}
-                  layerPositions={layerPositions}
-                  setLayerPositions={setLayerPositions}
-                  activePositionLayer={activeCategory === 'skin' ? 'global' : (activeCategory === 'badge' || activeCategory === 'text' ? null : activeCategory)}
-                  isPositioning={activeCategory !== 'badge' && activeCategory !== 'text'}
-                />
-              )}
-              {isLoading && appState !== 'finished' && (
-                <div className="loading-overlay">
-                  <div className="spinner" />
-                </div>
-              )}
-              {appState === 'finished' && badgeImageURL && (
-                <img 
-                  src={badgeImageURL} 
-                  alt="Final Badge" 
-                  style={{ 
-                    width: '100%', 
-                    height: '100%', 
-                    borderRadius: '50%', 
-                    userSelect: 'none' 
-                  }} 
-                />
-              )}
+            <div className="animated-wrapper" ref={previewContainerRef} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div 
+                className="preview-container" 
+                style={{
+                  background: `rgba(255, 255, 255, ${badgeOpacity})`,
+                  borderColor: `rgba(44, 53, 41, ${badgeOpacity})`,
+                  boxShadow: badgeOpacity > 0 ? 'var(--shadow-inset)' : 'none',
+                  overflow: badgeOpacity > 0 && appState !== 'finished' ? 'hidden' : 'visible',
+                  borderRadius: badgeOpacity > 0 ? '50%' : '0'
+                }}
+              >
+                {appState !== 'finished' && (
+                  <AvatarCanvas 
+                    ref={canvasRef}
+                    selectedOptions={selectedOptions} 
+                    onLoadingChange={setIsLoading}
+                    skinColor={skinColor}
+                    hairColor={hairColor}
+                    clothesColor={clothesColor}
+                    badgeHue={badgeHue}
+                    badgeOpacity={badgeOpacity}
+                    badgeTextColor={badgeTextColor}
+                    layerPositions={layerPositions}
+                    setLayerPositions={setLayerPositions}
+                    activePositionLayer={activeCategory === 'skin' ? 'global' : (activeCategory === 'badge' || activeCategory === 'text' ? null : activeCategory)}
+                    isPositioning={activeCategory !== 'badge' && activeCategory !== 'text'}
+                  />
+                )}
+                {isLoading && appState !== 'finished' && (
+                  <div className="loading-overlay">
+                    <div className="spinner" />
+                  </div>
+                )}
+                {appState === 'finished' && badgeImageURL && (
+                  <img 
+                    src={badgeImageURL} 
+                    alt="Final Badge" 
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      borderRadius: '50%',
+                      pointerEvents: 'auto',
+                      WebkitTouchCallout: 'default'
+                    }} 
+                  />
+                )}
+              </div>
+              
+              {/* Final Download Button */}
+              <button
+                ref={finalBtnRef}
+                onClick={handleDownloadImage}
+                className="final-download-btn"
+              >
+                ⬇ Save Badge
+              </button>
             </div>
           </div>
         </div>
-
-        {/* Final Download Button */}
-        <button
-          ref={finalBtnRef}
-          onClick={handleDownloadImage}
-          className="final-download-btn"
-        >
-          ⬇ Save Badge
-        </button>
       </div>
+
+      {/* Focus Mode FAB */}
+      {appState === 'editing' && (
+        <div ref={fabRef} className="focus-fab-wrapper">
+          <button 
+            className="focus-fab" 
+            onClick={() => setIsFocusMode(!isFocusMode)}
+            aria-label={isFocusMode ? "Exit Focus Mode" : "Enter Focus Mode"}
+          >
+            <div style={{
+              display: 'flex', 
+              transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              transform: isFocusMode ? 'rotate(180deg) scale(1.2)' : 'rotate(0deg) scale(1)'
+            }}>
+              {isFocusMode ? (
+                <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              ) : (
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+              )}
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Bottom UI Panel */}
       <div className="bottom-ui-panel" ref={bottomPanelRef}>

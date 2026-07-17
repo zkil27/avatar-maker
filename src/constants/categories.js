@@ -101,47 +101,6 @@ export const CATEGORIES = {
       }
     ]
   },
-  "facial_kineme": {
-    "name": "Facial Kineme",
-    "zIndex": 2,
-    "options": [
-      {
-        "id": "none",
-        "name": "None",
-        "path": null
-      },
-      {
-        "id": "facial_kineme_1",
-        "name": "Option 1",
-        "path": "/assets/facial_kineme/Untitled4_20260717133107.png"
-      },
-      {
-        "id": "facial_kineme_2",
-        "name": "Option 2",
-        "path": "/assets/facial_kineme/Untitled4_20260717134111.png"
-      },
-      {
-        "id": "facial_kineme_3",
-        "name": "Option 3",
-        "path": "/assets/facial_kineme/Untitled4_20260717134154.png"
-      },
-      {
-        "id": "facial_kineme_4",
-        "name": "Option 4",
-        "path": "/assets/facial_kineme/Untitled4_20260717134222.png"
-      },
-      {
-        "id": "facial_kineme_5",
-        "name": "Option 5",
-        "path": "/assets/facial_kineme/Untitled4_20260717134235.png"
-      },
-      {
-        "id": "facial_kineme_6",
-        "name": "Option 6",
-        "path": "/assets/facial_kineme/Untitled4_20260717134415.png"
-      }
-    ]
-  },
   "eyes": {
     "name": "Eyes",
     "zIndex": 3,
@@ -467,8 +426,8 @@ export const CATEGORIES = {
       }
     ]
   },
-  "accessories": {
-    "name": "Accessories",
+  "accessories_1": {
+    "name": "Accessory 1",
     "zIndex": 8,
     "options": [
       {
@@ -505,9 +464,181 @@ export const CATEGORIES = {
         "id": "accessories_6",
         "name": "Option 6",
         "path": "/assets/accessories/Untitled12_20260717133632.png"
+      },
+      {
+        "id": "facial_kineme_1",
+        "name": "Option 1",
+        "path": "/assets/facial_kineme/Untitled4_20260717133107.png"
+      },
+      {
+        "id": "facial_kineme_2",
+        "name": "Option 2",
+        "path": "/assets/facial_kineme/Untitled4_20260717134111.png"
+      },
+      {
+        "id": "facial_kineme_3",
+        "name": "Option 3",
+        "path": "/assets/facial_kineme/Untitled4_20260717134154.png"
+      },
+      {
+        "id": "facial_kineme_4",
+        "name": "Option 4",
+        "path": "/assets/facial_kineme/Untitled4_20260717134222.png"
+      },
+      {
+        "id": "facial_kineme_5",
+        "name": "Option 5",
+        "path": "/assets/facial_kineme/Untitled4_20260717134235.png"
+      },
+      {
+        "id": "facial_kineme_6",
+        "name": "Option 6",
+        "path": "/assets/facial_kineme/Untitled4_20260717134415.png"
+      }
+    ]
+  },
+  "accessories_2": {
+    "name": "Accessory 2",
+    "zIndex": 9,
+    "options": [
+      {
+        "id": "none",
+        "name": "None",
+        "path": null
+      },
+      {
+        "id": "accessories_1",
+        "name": "Option 1",
+        "path": "/assets/accessories/Untitled12_20260717131145.png"
+      },
+      {
+        "id": "accessories_2",
+        "name": "Option 2",
+        "path": "/assets/accessories/Untitled12_20260717131154.png"
+      },
+      {
+        "id": "accessories_3",
+        "name": "Option 3",
+        "path": "/assets/accessories/Untitled12_20260717131201.png"
+      },
+      {
+        "id": "accessories_4",
+        "name": "Option 4",
+        "path": "/assets/accessories/Untitled12_20260717131208.png"
+      },
+      {
+        "id": "accessories_5",
+        "name": "Option 5",
+        "path": "/assets/accessories/Untitled12_20260717131213.png"
+      },
+      {
+        "id": "accessories_6",
+        "name": "Option 6",
+        "path": "/assets/accessories/Untitled12_20260717133632.png"
+      },
+      {
+        "id": "facial_kineme_1",
+        "name": "Option 1",
+        "path": "/assets/facial_kineme/Untitled4_20260717133107.png"
+      },
+      {
+        "id": "facial_kineme_2",
+        "name": "Option 2",
+        "path": "/assets/facial_kineme/Untitled4_20260717134111.png"
+      },
+      {
+        "id": "facial_kineme_3",
+        "name": "Option 3",
+        "path": "/assets/facial_kineme/Untitled4_20260717134154.png"
+      },
+      {
+        "id": "facial_kineme_4",
+        "name": "Option 4",
+        "path": "/assets/facial_kineme/Untitled4_20260717134222.png"
+      },
+      {
+        "id": "facial_kineme_5",
+        "name": "Option 5",
+        "path": "/assets/facial_kineme/Untitled4_20260717134235.png"
+      },
+      {
+        "id": "facial_kineme_6",
+        "name": "Option 6",
+        "path": "/assets/facial_kineme/Untitled4_20260717134415.png"
+      }
+    ]
+  },
+  "accessories_3": {
+    "name": "Accessory 3",
+    "zIndex": 10,
+    "options": [
+      {
+        "id": "none",
+        "name": "None",
+        "path": null
+      },
+      {
+        "id": "accessories_1",
+        "name": "Option 1",
+        "path": "/assets/accessories/Untitled12_20260717131145.png"
+      },
+      {
+        "id": "accessories_2",
+        "name": "Option 2",
+        "path": "/assets/accessories/Untitled12_20260717131154.png"
+      },
+      {
+        "id": "accessories_3",
+        "name": "Option 3",
+        "path": "/assets/accessories/Untitled12_20260717131201.png"
+      },
+      {
+        "id": "accessories_4",
+        "name": "Option 4",
+        "path": "/assets/accessories/Untitled12_20260717131208.png"
+      },
+      {
+        "id": "accessories_5",
+        "name": "Option 5",
+        "path": "/assets/accessories/Untitled12_20260717131213.png"
+      },
+      {
+        "id": "accessories_6",
+        "name": "Option 6",
+        "path": "/assets/accessories/Untitled12_20260717133632.png"
+      },
+      {
+        "id": "facial_kineme_1",
+        "name": "Option 1",
+        "path": "/assets/facial_kineme/Untitled4_20260717133107.png"
+      },
+      {
+        "id": "facial_kineme_2",
+        "name": "Option 2",
+        "path": "/assets/facial_kineme/Untitled4_20260717134111.png"
+      },
+      {
+        "id": "facial_kineme_3",
+        "name": "Option 3",
+        "path": "/assets/facial_kineme/Untitled4_20260717134154.png"
+      },
+      {
+        "id": "facial_kineme_4",
+        "name": "Option 4",
+        "path": "/assets/facial_kineme/Untitled4_20260717134222.png"
+      },
+      {
+        "id": "facial_kineme_5",
+        "name": "Option 5",
+        "path": "/assets/facial_kineme/Untitled4_20260717134235.png"
+      },
+      {
+        "id": "facial_kineme_6",
+        "name": "Option 6",
+        "path": "/assets/facial_kineme/Untitled4_20260717134415.png"
       }
     ]
   }
 };
 
-export const CATEGORY_KEYS = ["skin", "eyes", "mouth", "facial_kineme", "hair_back", "hair_bangs", "clothes", "accessories"];
+export const CATEGORY_KEYS = ["skin","eyes","mouth","hair_back","hair_bangs","clothes","accessories_1","accessories_2","accessories_3"];
