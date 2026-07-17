@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import AvatarCanvas, { INITIAL_STATE } from './components/AvatarCanvas';
 import CustomizationControls from './components/CustomizationControls';
-import Badge3D from './components/Badge3D';
+
+import TutorialModal from './components/TutorialModal';
 import { CATEGORIES } from './constants/categories';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -19,25 +20,24 @@ export default function App() {
   const DEFAULT_LAYER_POSITIONS = {
     global: { x: 0, y: 15, scale: 0.75, rotation: 0 },
     skin: { x: 0, y: 0, scale: 1, rotation: 0 },
-    clothes: { x: 0, y: 0, scale: 1, rotation: 0 },
-    mouth: { x: 0, y: 0, scale: 1, rotation: 0 },
+    facial_kineme: { x: 0, y: 0, scale: 1, rotation: 0 },
     eyes: { x: 0, y: 0, scale: 1, rotation: 0 },
-    hair: { x: 0, y: 0, scale: 1, rotation: 0 },
+    mouth: { x: 0, y: 0, scale: 1, rotation: 0 },
+    hair_back: { x: 0, y: 0, scale: 1, rotation: 0 },
+    clothes: { x: 0, y: 0, scale: 1, rotation: 0 },
+    hair_bangs: { x: 0, y: 0, scale: 1, rotation: 0 },
     accessories: { x: 0, y: 0, scale: 1, rotation: 0 }
   };
 
   const [layerPositions, setLayerPositions] = useState(DEFAULT_LAYER_POSITIONS);
-  const [activePositionLayer, setActivePositionLayer] = useState('global');
-  const [step, setStep] = useState('customize'); // 'customize' or 'position'
+  const [activeCategory, setActiveCategory] = useState('skin');
   const [isLoading, setIsLoading] = useState(false);
   const [appState, setAppState] = useState('editing'); // 'editing', 'saving', 'finished'
   const [badgeImageURL, setBadgeImageURL] = useState(null);
-  const [badgeOpacity, setBadgeOpacity] = useState(0);
-  const badgeProxyRef = useRef({ opacity: 0 });
+  const [badgeOpacity, setBadgeOpacity] = useState(1);
   const isInitialMount = useRef(true);
   const downloadingRef = useRef(false);
   const canvasRef = useRef(null);
-  const positionTabsRef = useRef(null);
 
   const containerRef = useRef(null);
   const cardWrapperRef = useRef(null);
@@ -45,41 +45,9 @@ export default function App() {
   const bottomPanelRef = useRef(null);
   const mainCardRef = useRef(null);
   const finalBtnRef = useRef(null);
+  const shockwaveRef = useRef(null);
 
   const { contextSafe } = useGSAP({ scope: containerRef });
-
-  const getGiantAvatarProps = () => {
-    if (typeof window === 'undefined') return { scale: 3.2, y: 80 };
-    const H = window.innerHeight;
-    const W = window.innerWidth;
-    const vh = H / 100;
-    
-    const baseSize = 28 * vh;
-    const targetSize = Math.min(H * 0.50, W * 0.85);
-    let scale = targetSize / baseSize;
-    scale = Math.max(1.8, Math.min(scale, 3.5));
-    
-    let targetVisualBottom = H - 340;
-    if (bottomPanelRef.current) {
-      targetVisualBottom = bottomPanelRef.current.getBoundingClientRect().top;
-    }
-    
-    // Add a slight overlap (e.g. 15px) so the avatar sinks just barely into the panel,
-    // completely eliminating any tiny gaps or bounding box differences.
-    targetVisualBottom += 15;
-    
-    // The notebook wrapper is scaled by 0.85 with transform-origin: top.
-    // Its visual top is 32px from the top of the viewport (app-container padding).
-    // The avatar preview is inside the wrapper with 24px padding.
-    // Local center of avatar: 24 + 14vh
-    // Local bottom of avatar after GSAP scale and y: 24 + 14vh + 14vh*scale + y
-    // Visual bottom = 32 + 0.85 * (local bottom)
-    
-    const requiredLocalBottom = (targetVisualBottom - 32) / 0.85;
-    const requiredY = requiredLocalBottom - 24 - (14 * vh) - (14 * vh * scale);
-    
-    return { scale, y: requiredY };
-  };
 
   const getBadgeProps = () => {
     if (typeof window === 'undefined') return { scale: 1, y: 0 };
@@ -106,51 +74,27 @@ export default function App() {
     if (!previewContainerRef.current) return;
     gsap.killTweensOf(previewContainerRef.current);
     
-    const { scale: giantScale } = getGiantAvatarProps();
-    const { scale: badgeScale } = getBadgeProps();
-    const targetScale = step === 'customize' ? giantScale : badgeScale;
+    const { scale, y } = getBadgeProps();
     
     gsap.fromTo(previewContainerRef.current, 
-      { scale: targetScale * 1.05, rotation: (Math.random() - 0.5) * 4 },
-      { scale: targetScale, rotation: 0, duration: 0.5, ease: 'elastic.out(1.2, 0.4)' }
+      { scale: scale * 1.05, rotation: (Math.random() - 0.5) * 4 },
+      { scale: scale, rotation: 0, duration: 0.5, ease: 'elastic.out(1.2, 0.4)' }
     );
   });
 
-  // Block scroll wheel on position tabs
-  React.useEffect(() => {
-    const el = positionTabsRef.current;
-    if (!el) return;
-    const block = (e) => e.preventDefault();
-    el.addEventListener('wheel', block, { passive: false });
-    return () => el.removeEventListener('wheel', block);
-  }, [step]); // Re-bind when step changes to 'position'
 
-  // Initialize Giant Avatar
+
+  // Initialize Avatar position
   React.useEffect(() => {
-    if (step === 'customize' && appState === 'editing') {
-      const { scale, y } = getGiantAvatarProps();
+    if (appState === 'editing') {
+      const { scale, y } = getBadgeProps();
       
       if (isInitialMount.current) {
-        gsap.killTweensOf(badgeProxyRef.current);
-        badgeProxyRef.current.opacity = 0;
-        setBadgeOpacity(0);
         gsap.set(previewContainerRef.current, { scale, y });
         isInitialMount.current = false;
-      } else {
-        // Smoothly fade the badge out
-        gsap.killTweensOf(badgeProxyRef.current);
-        gsap.to(badgeProxyRef.current, {
-          opacity: 0,
-          duration: 0.4,
-          ease: 'power2.out',
-          onUpdate: () => setBadgeOpacity(badgeProxyRef.current.opacity)
-        });
-        
-        // Bounce the avatar back up
-        gsap.to(previewContainerRef.current, { scale, y, duration: 0.8, ease: 'back.out(1.2)' });
       }
     }
-  }, [step, appState]);
+  }, [appState]);
 
   const handleChange = (category, optionId) => {
     setSelectedOptions(prev => ({
@@ -172,7 +116,7 @@ export default function App() {
     const { scale, y } = getBadgeProps();
     
     const tl = gsap.timeline();
-    // 1. Giant avatar snaps down to fit badge
+    // 1. Avatar snaps down to fit badge
     tl.to(previewContainerRef.current, {
       scale,
       y,
@@ -180,25 +124,18 @@ export default function App() {
       duration: 0.8,
       ease: 'back.out(1.2)'
     });
-    
-    // 2. Badge fades in
-    gsap.killTweensOf(badgeProxyRef.current);
-    badgeProxyRef.current.opacity = 0;
-    tl.to(badgeProxyRef.current, {
-      opacity: 1,
-      duration: 0.6,
-      ease: 'power2.inOut',
-      onUpdate: () => setBadgeOpacity(badgeProxyRef.current.opacity)
-    }, "-=0.6");
   });
 
   const handleFinishID = contextSafe(() => {
     if (isLoading || downloadingRef.current || appState !== 'editing') return;
     
     // Capture the 2D badge image BEFORE starting animations
+    // Convert to Blob instead of Data URL to prevent mobile WebView crashes
     const canvas = document.querySelector('[data-testid="avatar-canvas"]');
     if (canvas) {
-      setBadgeImageURL(canvas.toDataURL('image/png'));
+      canvas.toBlob((blob) => {
+        if (blob) setBadgeImageURL(URL.createObjectURL(blob));
+      }, 'image/png');
     }
 
     setAppState('saving');
@@ -208,78 +145,118 @@ export default function App() {
     // 1. UI Drop-away
     tl.to(bottomPanelRef.current, {
       y: '100%',
-      duration: 0.6,
+      duration: 0.5,
       ease: 'back.in(1.2)'
     });
 
-    // 2. Badge pops back to natural position in wrapper (fixes overlap)
+    // 2. Scale badge WAY up (Zoom out) and tilt it
     tl.to(previewContainerRef.current, {
+      scale: 2.5,
+      y: '-20vh',
+      rotationZ: 15,
+      duration: 0.6,
+      ease: 'power2.out'
+    }, "-=0.3");
+
+    // 3. THE SLAM! (Smash it down into the center)
+    tl.to(previewContainerRef.current, {
+      scale: 1.2,
       y: 0,
-      scale: 1,
-      duration: 0.7,
-      ease: 'back.out(1.2)'
-    }, "<0.1");
-
-    // 3. Wrapper slides down to visually center on the screen
-    tl.to(cardWrapperRef.current, {
-      y: '15vh',
-      duration: 0.8,
-      ease: 'power3.inOut'
-    }, "<");
-
-    // 4. Cute happy wiggle!
-    tl.to(previewContainerRef.current, {
-      rotationZ: -8,
-      duration: 0.12,
-      ease: 'power1.inOut'
-    }, "-=0.2")
-    .to(previewContainerRef.current, {
-      rotationZ: 8,
-      duration: 0.12,
-      ease: 'power1.inOut'
-    })
-    .to(previewContainerRef.current, {
-      rotationZ: -4,
-      duration: 0.12,
-      ease: 'power1.inOut'
-    })
-    .to(previewContainerRef.current, {
       rotationZ: 0,
-      duration: 0.4,
-      ease: 'elastic.out(1.5, 0.5)',
+      duration: 0.3,
+      ease: 'back.out(1.5)',
       onComplete: () => {
         setAppState('finished');
-        gsap.fromTo(finalBtnRef.current, 
-          { autoAlpha: 0, scale: 0.5, rotationZ: -10, y: 30 },
-          { autoAlpha: 1, scale: 1, rotationZ: 0, y: 0, duration: 0.8, ease: 'elastic.out(1.2, 0.4)' }
-        );
+        // Screen shake
+        gsap.to(containerRef.current, {
+          y: 'random(-10, 10)',
+          x: 'random(-10, 10)',
+          duration: 0.05,
+          yoyo: true,
+          repeat: 5,
+          onComplete: () => gsap.set(containerRef.current, { clearProps: 'all' })
+        });
       }
     });
+
+    // Move the wrapper down to center it on screen vertically
+    tl.to(cardWrapperRef.current, {
+      y: '22vh',
+      duration: 0.3,
+      ease: 'power2.out'
+    }, "<");
+
+    // 5. Expand and fade the shockwave
+    tl.fromTo(shockwaveRef.current,
+      { scale: 0.5, opacity: 1 },
+      { scale: 6, opacity: 0, duration: 0.8, ease: 'power2.out' },
+      "<" // Start at the same time as the slam finishes
+    );
+
+    // 6. Drop in the "Save Badge" button
+    tl.fromTo(finalBtnRef.current, 
+      { autoAlpha: 0, scale: 0.5, rotationZ: -10, y: 30 },
+      { autoAlpha: 1, scale: 1, rotationZ: 0, y: 0, duration: 0.8, ease: 'elastic.out(1.2, 0.4)' },
+      "-=0.3"
+    );
   });
 
-  const handleDownloadImage = () => {
+  const handleDownloadImage = async () => {
     if (downloadingRef.current) return;
     
     downloadingRef.current = true;
-    setTimeout(() => { downloadingRef.current = false; }, 500);
-
-    let dataUrl = badgeImageURL;
-    if (!dataUrl) {
-      const canvas = document.querySelector('[data-testid="avatar-canvas"]');
-      if (canvas) dataUrl = canvas.toDataURL('image/png');
-    }
-    
-    if (!dataUrl) return;
+    setTimeout(() => { downloadingRef.current = false; }, 1000);
 
     try {
+      let blob = null;
+      if (badgeImageURL && badgeImageURL.startsWith('blob:')) {
+        // badgeImageURL is already a Blob URL
+        const response = await fetch(badgeImageURL);
+        blob = await response.blob();
+      } else {
+        // Fallback
+        const canvas = document.querySelector('[data-testid="avatar-canvas"]');
+        if (canvas) {
+          blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        }
+      }
+      
+      if (!blob) return;
+
+      // 2. Try Web Share API (Best for mobile/FB in-app browsers)
+      if (navigator.share) {
+        const file = new File([blob], 'my-camper-id.png', { type: 'image/png' });
+        // Check if the browser supports sharing files
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'My Avatar ID',
+            });
+            return; // Success, user shared or saved via native dialog
+          } catch (shareError) {
+            // Ignore AbortError (user cancelled)
+            if (shareError.name === 'AbortError') return;
+            console.error('Share failed, falling back to download:', shareError);
+          }
+        }
+      }
+
+      // 3. Fallback to Object URL download
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.download = 'my-camper-id.png';
-      link.href = dataUrl;
+      link.href = blobUrl;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up the object URL to free memory
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+      
     } catch (error) {
-      console.error('Download failed:', error);
+      console.error('Download/Share failed:', error);
+      alert('Unable to save. If you are inside an app like Facebook, please tap the menu and choose "Open in Browser".');
     }
   };
 
@@ -301,6 +278,9 @@ export default function App() {
       setSkinColor('#fadcbc');
       setBadgeHue(0);
       setBadgeTextColor('#ffffff');
+      if (badgeImageURL && badgeImageURL.startsWith('blob:')) {
+        URL.revokeObjectURL(badgeImageURL);
+      }
       setBadgeImageURL(null);
       setLayerPositions(DEFAULT_LAYER_POSITIONS);
       setActivePositionLayer('global');
@@ -331,12 +311,14 @@ export default function App() {
 
   return (
     <div className="app-container" ref={containerRef}>
+      <TutorialModal />
       {/* Centered Wrapper for Notebook Page */}
       <div className="id-card-wrapper" ref={cardWrapperRef}>
         
         <div className="main-card" ref={mainCardRef} style={{ width: '100%', maxWidth: '440px', padding: '24px 16px' }}>
 
           <div style={{ position: 'relative', margin: '0 auto 4px', zIndex: 10, display: 'inline-block' }}>
+            <div className="shockwave" ref={shockwaveRef}></div>
             <div 
               className="preview-container" 
               ref={previewContainerRef}
@@ -355,12 +337,12 @@ export default function App() {
                   onLoadingChange={setIsLoading}
                   skinColor={skinColor}
                   badgeHue={badgeHue}
-                  layerPositions={layerPositions}
-                  setLayerPositions={setLayerPositions}
-                  activePositionLayer={activePositionLayer}
-                  isPositioning={step === 'position'}
                   badgeOpacity={badgeOpacity}
                   badgeTextColor={badgeTextColor}
+                  layerPositions={layerPositions}
+                  setLayerPositions={setLayerPositions}
+                  activePositionLayer={activeCategory === 'skin' ? 'global' : (activeCategory === 'badge' || activeCategory === 'text' ? null : activeCategory)}
+                  isPositioning={activeCategory !== 'badge' && activeCategory !== 'text'}
                 />
               )}
               {isLoading && appState !== 'finished' && (
@@ -369,7 +351,16 @@ export default function App() {
                 </div>
               )}
               {appState === 'finished' && badgeImageURL && (
-                <Badge3D textureUrl={badgeImageURL} badgeHue={badgeHue} />
+                <img 
+                  src={badgeImageURL} 
+                  alt="Final Badge" 
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    borderRadius: '50%', 
+                    userSelect: 'none' 
+                  }} 
+                />
               )}
             </div>
           </div>
@@ -388,171 +379,39 @@ export default function App() {
       {/* Bottom UI Panel */}
       <div className="bottom-ui-panel" ref={bottomPanelRef}>
         <div className="bottom-ui-content">
-          {step === 'customize' ? (
-            <CustomizationControls
-              selectedOptions={selectedOptions}
-              onChange={handleChange}
-              skinColor={skinColor}
-              onSkinColorChange={setSkinColor}
-              badgeHue={badgeHue}
-              onBadgeHueChange={(hue) => { setBadgeHue(hue); animatePreview(); }}
-            />
-          ) : (
-            <>
-              {/* Layer Selector Tabs */}
-              <div className="tabs-wrapper">
-                <div className="tabs-container" ref={positionTabsRef}>
-                  {['global', 'eyes', 'mouth', 'hair', 'accessories', 'badge', 'text'].map(layer => (
-                    <button
-                      key={layer}
-                      onClick={() => setActivePositionLayer(layer)}
-                      className={`tab-btn ${activePositionLayer === layer ? 'active' : ''}`}
-                    >
-                      {layer === 'global' ? 'Entire Avatar' : layer.charAt(0).toUpperCase() + layer.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="position-controls">
-                {activePositionLayer === 'badge' ? (
-                  <div className="badge-controls" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', overflowY: 'auto', alignContent: 'start', paddingBottom: '16px' }}>
-                    {BADGE_HUES.map(hue => (
-                      <div
-                        key={hue}
-                        role="button"
-                        tabIndex={0}
-                        className={`option-btn ${badgeHue === hue ? 'selected' : ''}`}
-                        onClick={() => { setBadgeHue(hue); animatePreview(); }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setBadgeHue(hue);
-                            animatePreview();
-                          }
-                        }}
-                        title={`Hue ${hue}°`}
-                      >
-                        <div className="option-btn-content">
-                          <img 
-                            src="/assets/frame/frame1.png" 
-                            alt={`Hue ${hue}°`} 
-                            style={{ 
-                              filter: `hue-rotate(${hue}deg)`,
-                              width: '85%', 
-                              height: '85%', 
-                              objectFit: 'contain' 
-                            }} 
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : activePositionLayer === 'text' ? (
-                  <div className="badge-controls" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', overflowY: 'auto', alignContent: 'start', paddingBottom: '16px' }}>
-                    {BADGE_TEXT_COLORS.map(color => (
-                      <div
-                        key={color}
-                        role="button"
-                        tabIndex={0}
-                        className={`option-btn ${badgeTextColor === color ? 'selected' : ''}`}
-                        onClick={() => { setBadgeTextColor(color); animatePreview(); }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setBadgeTextColor(color);
-                            animatePreview();
-                          }
-                        }}
-                        style={{ backgroundColor: color }}
-                        title={`Text Color ${color}`}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ marginTop: '0px' }}>
-                      <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '15px', fontWeight: 'bold', color: 'var(--bg-card)' }}>
-                        Size <span>{Math.round(layerPositions[activePositionLayer].scale * 100)}%</span>
-                      </label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <button onClick={() => setLayerPositions(p => ({...p, [activePositionLayer]: {...p[activePositionLayer], scale: Math.max(0.3, p[activePositionLayer].scale - 0.05)}}))} style={{ flex: '0 0 40px', height: '40px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.25)', color: 'var(--bg-card)', fontWeight: 'bold', fontSize: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)' }}>-</button>
-                        <input 
-                          type="range" 
-                          min="0.3" max="2.0" step="0.01" 
-                          value={layerPositions[activePositionLayer].scale} 
-                          onChange={e => setLayerPositions(p => ({...p, [activePositionLayer]: {...p[activePositionLayer], scale: parseFloat(e.target.value)}}))} 
-                          style={{ flex: 1 }} 
-                        />
-                        <button onClick={() => setLayerPositions(p => ({...p, [activePositionLayer]: {...p[activePositionLayer], scale: Math.min(2.0, p[activePositionLayer].scale + 0.05)}}))} style={{ flex: '0 0 40px', height: '40px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.25)', color: 'var(--bg-card)', fontWeight: 'bold', fontSize: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)' }}>+</button>
-                      </div>
-                    </div>
-                    <div style={{ marginTop: '4px' }}>
-                      <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '15px', fontWeight: 'bold', color: 'var(--bg-card)' }}>
-                        Rotation <span>{layerPositions[activePositionLayer].rotation || 0}°</span>
-                      </label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <button onClick={() => setLayerPositions(p => ({...p, [activePositionLayer]: {...p[activePositionLayer], rotation: Math.max(-180, p[activePositionLayer].rotation - 5)}}))} style={{ flex: '0 0 40px', height: '40px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.25)', color: 'var(--bg-card)', fontWeight: 'bold', fontSize: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)' }}>-</button>
-                        <input 
-                          type="range" 
-                          min="-180" max="180" step="1" 
-                          value={layerPositions[activePositionLayer].rotation || 0} 
-                          onChange={e => setLayerPositions(p => ({...p, [activePositionLayer]: {...p[activePositionLayer], rotation: parseInt(e.target.value)}}))} 
-                          style={{ flex: 1 }} 
-                        />
-                        <button onClick={() => setLayerPositions(p => ({...p, [activePositionLayer]: {...p[activePositionLayer], rotation: Math.min(180, p[activePositionLayer].rotation + 5)}}))} style={{ flex: '0 0 40px', height: '40px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.25)', color: 'var(--bg-card)', fontWeight: 'bold', fontSize: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)' }}>+</button>
-                      </div>
-                    </div>
-                    <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'center', paddingBottom: '12px' }}>
-                      <button 
-                        onClick={() => setLayerPositions(prev => ({ ...prev, [activePositionLayer]: DEFAULT_LAYER_POSITIONS[activePositionLayer] }))}
-                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '8px 20px', borderRadius: '10px', color: 'var(--bg-card)', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-                        ↺ Reset {activePositionLayer === 'global' ? 'Avatar' : activePositionLayer.charAt(0).toUpperCase() + activePositionLayer.slice(1)}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          )}
+          <CustomizationControls
+            selectedOptions={selectedOptions}
+            onChange={handleChange}
+            activeCategory={activeCategory}
+            setActiveCategory={setActiveCategory}
+            skinColor={skinColor}
+            onSkinColorChange={setSkinColor}
+            badgeHue={badgeHue}
+            onBadgeHueChange={(hue) => { setBadgeHue(hue); animatePreview(); }}
+            badgeTextColor={badgeTextColor}
+            onBadgeTextColorChange={(color) => { setBadgeTextColor(color); animatePreview(); }}
+            onResetLayer={(layer) => {
+              const resetLayer = layer === 'skin' ? 'global' : layer;
+              setLayerPositions(prev => ({ ...prev, [resetLayer]: DEFAULT_LAYER_POSITIONS[resetLayer] }));
+            }}
+          />
 
           <div className="action-buttons">
-            {step === 'customize' ? (
-              <button
-                onClick={handleNextStep}
-                className="btn btn-download btn-finish"
-                style={{ flex: 1 }}
-              >
-                Next: Position Avatar ➔
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => { 
-                    setStep('customize'); 
-                  }}
-                  className="btn btn-reset"
-                  style={{ flex: '0 0 auto', padding: '12px 16px' }}
-                >
-                  ← Back
-                </button>
-                <button
-                  data-testid="finish-button"
-                  onClick={handleFinishID}
-                  className="btn btn-download btn-finish"
-                >
-                  Finish ID
-                </button>
-                <button
-                  data-testid="reset-button"
-                  onClick={handleReset}
-                  className="btn btn-reset"
-                  style={{ flex: '0 0 auto' }}
-                >
-                  ↺ Reset
-                </button>
-              </>
-            )}
+            <button
+              data-testid="finish-button"
+              onClick={handleFinishID}
+              className="btn btn-download btn-finish"
+            >
+              Finish ID
+            </button>
+            <button
+              data-testid="reset-button"
+              onClick={handleReset}
+              className="btn btn-reset"
+              style={{ flex: '0 0 auto' }}
+            >
+              ↺ Reset
+            </button>
           </div>
         </div>
       </div>

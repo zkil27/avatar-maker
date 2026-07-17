@@ -3,10 +3,12 @@ import { CATEGORIES, CATEGORY_KEYS } from '../constants/categories';
 
 export const INITIAL_STATE = {
   skin: 'skin_1',
-  clothes: 'clothes_1',
-  mouth: 'mouth_1',
+  facial_kineme: 'none',
   eyes: 'eyes_1',
-  hair: 'none',
+  mouth: 'mouth_1',
+  hair_back: 'none',
+  clothes: 'clothes_1',
+  hair_bangs: 'none',
   accessories: 'none',
 };
 
@@ -285,45 +287,106 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
     .map(key => `${key}:${selectedOptions[key] || 'none'}`)
     .join(',');
 
+  const activePointers = useRef(new Map());
+  const initialGestureState = useRef(null);
+
   const handlePointerDown = (e) => {
     if (!isPositioning) return;
-    isDragging.current = true;
-    dragStart.current = { x: e.clientX, y: e.clientY };
     e.target.setPointerCapture(e.pointerId);
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    
+    // When a second finger touches, lock in the initial distance and angle for scaling/rotating
+    if (activePointers.current.size === 2) {
+      const pointers = Array.from(activePointers.current.values());
+      const dx = pointers[1].x - pointers[0].x;
+      const dy = pointers[1].y - pointers[0].y;
+      const distance = Math.hypot(dx, dy);
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      
+      const layer = activePositionLayer || 'global';
+      const currentPos = layerPositionsRef.current[layer] || { x: 0, y: 0, scale: 1, rotation: 0 };
+      
+      initialGestureState.current = {
+        distance,
+        angle,
+        baseScale: currentPos.scale || 1,
+        baseRotation: currentPos.rotation || 0
+      };
+    } else if (activePointers.current.size === 1) {
+      initialGestureState.current = null;
+    }
   };
 
   const handlePointerMove = (e) => {
-    if (!isDragging.current || !isPositioning) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    dragStart.current = { x: e.clientX, y: e.clientY };
+    if (!isPositioning || !activePointers.current.has(e.pointerId)) return;
     
-    // Convert screen pixel movement to actual canvas coordinate percentages
+    const prevPos = activePointers.current.get(e.pointerId);
+    const dxDrag = e.clientX - prevPos.x;
+    const dyDrag = e.clientY - prevPos.y;
+    
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
     const rect = e.target.getBoundingClientRect();
     const scaleX = 400 / rect.width;
     const scaleY = 400 / rect.height;
-    
-    // Since 1% = 4px on a 400x400 canvas, we divide by 4 to get percentage offset
+
     setLayerPositions(prev => {
       const layer = activePositionLayer || 'global';
       const current = prev[layer] || { x: 0, y: 0, scale: 1, rotation: 0 };
       const scaleAdjustment = layer === 'global' ? 1 : (prev.global?.scale || 0.75);
       
-      return {
-        ...prev,
-        [layer]: {
-          ...current,
-          x: current.x + (dx * scaleX) / (4 * scaleAdjustment),
-          y: current.y + (dy * scaleY) / (4 * scaleAdjustment)
-        }
-      };
+      if (activePointers.current.size === 1) {
+        // Drag to pan
+        return {
+          ...prev,
+          [layer]: {
+            ...current,
+            x: current.x + (dxDrag * scaleX) / (4 * scaleAdjustment),
+            y: current.y + (dyDrag * scaleY) / (4 * scaleAdjustment)
+          }
+        };
+      } else if (activePointers.current.size === 2 && initialGestureState.current) {
+        // Pinch to scale & Twist to rotate
+        const pointers = Array.from(activePointers.current.values());
+        const dx = pointers[1].x - pointers[0].x;
+        const dy = pointers[1].y - pointers[0].y;
+        
+        const distance = Math.hypot(dx, dy);
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        
+        const scaleRatio = distance / initialGestureState.current.distance;
+        let newScale = initialGestureState.current.baseScale * scaleRatio;
+        newScale = Math.max(0.3, Math.min(2.0, newScale)); // Clamp scale
+        
+        let angleDelta = angle - initialGestureState.current.angle;
+        if (angleDelta > 180) angleDelta -= 360;
+        if (angleDelta < -180) angleDelta += 360;
+        
+        let newRotation = initialGestureState.current.baseRotation + angleDelta;
+        if (newRotation > 180) newRotation -= 360;
+        if (newRotation < -180) newRotation += 360;
+
+        return {
+          ...prev,
+          [layer]: {
+            ...current,
+            scale: newScale,
+            rotation: Math.round(newRotation)
+          }
+        };
+      }
+      return prev;
     });
   };
 
   const handlePointerUp = (e) => {
     if (!isPositioning) return;
-    isDragging.current = false;
+    activePointers.current.delete(e.pointerId);
     e.target.releasePointerCapture(e.pointerId);
+    
+    if (activePointers.current.size < 2) {
+      initialGestureState.current = null;
+    }
   };
 
   return (
