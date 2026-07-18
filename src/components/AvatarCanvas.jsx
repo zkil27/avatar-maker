@@ -164,33 +164,40 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
             const tCtx = tCanvas.getContext('2d');
             tCtx.drawImage(img, 0, 0);
             
-            const imgData = tCtx.getImageData(0, 0, img.width, img.height);
-            const data = imgData.data;
-            const hex = targetColor;
-            const tr = parseInt(hex.slice(1,3), 16);
-            const tg = parseInt(hex.slice(3,5), 16);
-            const tb = parseInt(hex.slice(5,7), 16);
+            try {
+              const imgData = tCtx.getImageData(0, 0, img.width, img.height);
+              const data = imgData.data;
+              const hex = targetColor;
+              const tr = parseInt(hex.slice(1,3), 16);
+              const tg = parseInt(hex.slice(3,5), 16);
+              const tb = parseInt(hex.slice(5,7), 16);
 
-            const threshold = key === 'skin' ? 60 : 15;
-            for (let i = 0; i < data.length; i += 4) {
-              if (data[i+3] > 0) {
-                const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
-                if (brightness > threshold) {
-                  // Normalize factor based on typical asset brightness to preserve both shadows and highlights
-                  let normBase = 130;
-                  if (key === 'skin') normBase = 235;
-                  else if (key === 'clothes') normBase = 235;
-                  
-                  const factor = brightness / normBase;
-                  data[i] = Math.min(255, tr * factor);
-                  data[i+1] = Math.min(255, tg * factor);
-                  data[i+2] = Math.min(255, tb * factor);
+              const threshold = key === 'skin' ? 60 : 15;
+              for (let i = 0; i < data.length; i += 4) {
+                if (data[i+3] > 0) {
+                  const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
+                  if (brightness > threshold) {
+                    // Normalize factor based on typical asset brightness to preserve both shadows and highlights
+                    let normBase = 130;
+                    if (key === 'skin') normBase = 235;
+                    else if (key === 'clothes') normBase = 235;
+                    
+                    const factor = brightness / normBase;
+                    data[i] = Math.min(255, tr * factor);
+                    data[i+1] = Math.min(255, tg * factor);
+                    data[i+2] = Math.min(255, tb * factor);
+                  }
                 }
               }
+              tCtx.putImageData(imgData, 0, 0);
+              cacheRef.current.canvas = tCanvas;
+            } catch (err) {
+              // Safari iOS CORS caching bug workaround: fallback to original image if getImageData throws SecurityError
+              console.warn('Canvas getImageData tainted, skipping tint:', err);
+              cacheRef.current.canvas = img;
             }
-            tCtx.putImageData(imgData, 0, 0);
+            
             cacheRef.current.color = targetColor;
-            cacheRef.current.canvas = tCanvas;
             cacheRef.current.originalSrc = img.src;
           }
           layerToDraw = cacheRef.current.canvas;

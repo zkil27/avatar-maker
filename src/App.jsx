@@ -59,8 +59,13 @@ export default function App() {
     const H = window.innerHeight;
     const vh = H / 100;
     
+    // Cap the base size to avoid overflowing the 480px container on wide screens
+    const baseSizePx = Math.min(28 * vh, 280);
+    
     // Make the badge larger (up to 1.6x) so it's not tiny on big screens
-    const scale = Math.min(1.6, (H * 0.4) / (28 * vh)); 
+    let scale = Math.min(1.6, (H * 0.4) / baseSizePx); 
+    const maxScaleForContainer = 440 / baseSizePx;
+    scale = Math.min(scale, maxScaleForContainer);
     
     // The bottom panel has a fixed height of 58vh.
     // When it's open, its top edge is at 42vh (H - 0.58*H).
@@ -69,7 +74,7 @@ export default function App() {
     // Perfectly center the badge in the empty brown space above the panel
     const emptySpaceCenter = targetVisualBottom / 2;
     const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
-    const requiredY = requiredLocalCenter - 24 - (14 * vh);
+    const requiredY = requiredLocalCenter - 24 - (baseSizePx / 2);
     
     return { scale, y: requiredY };
   };
@@ -110,14 +115,15 @@ export default function App() {
       const H = window.innerHeight;
       const W = window.innerWidth;
       const vh = H / 100;
-      const baseSizePx = 28 * vh;
+      const baseSizePx = Math.min(28 * vh, 280);
       const targetSize = Math.min(W, H) * 0.9; 
-      const scale = targetSize / baseSizePx;
+      const finalTargetSize = Math.min(targetSize, 440);
+      const scale = finalTargetSize / baseSizePx;
       
       // Use the same coordinate system math as getBadgeProps to center it vertically on the whole screen
       const emptySpaceCenter = H / 2;
       const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
-      const targetY = requiredLocalCenter - 24 - (14 * vh);
+      const targetY = requiredLocalCenter - 24 - (baseSizePx / 2);
       
       gsap.to(previewContainerRef.current, {
         scale: scale,

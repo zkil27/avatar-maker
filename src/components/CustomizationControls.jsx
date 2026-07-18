@@ -169,6 +169,7 @@ export default function CustomizationControls({
             >
               <div className="option-btn-content">
                 <img 
+                  crossOrigin="anonymous"
                   src="/assets/frame/frame1.png" 
                   alt={`Hue ${hue}°`} 
                   style={{ 
@@ -221,7 +222,7 @@ export default function CustomizationControls({
                 <div className="option-btn-content">
                   {option.path ? (
                     <>
-                      <img src={option.path} alt={option.name} loading="lazy" style={{ position: 'relative', zIndex: 1 }} />
+                      <img crossOrigin="anonymous" src={option.path} alt={option.name} loading="lazy" style={{ position: 'relative', zIndex: 1 }} />
                       {activeCategory === 'skin' && option.color && option.color !== '#fadcbc' && (
                         <div style={{
                           position: 'absolute',

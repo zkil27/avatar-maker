@@ -179,8 +179,8 @@ body {
 
 .preview-container {
   position: relative;
-  width: 28vh;
-  height: 28vh;
+  width: min(28vh, 280px);
+  height: min(28vh, 280px);
   border: 4px solid var(--border-dark);
   border-radius: 50%;
   background: #fff;
