@@ -357,6 +357,7 @@ body {
   -ms-overflow-style: none;
   overscroll-behavior-x: contain;
   touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tabs-container::-webkit-scrollbar {
@@ -425,7 +426,7 @@ body {
   scrollbar-width: none;
   flex: 1;
   min-height: 0;
-  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
   
   /* Cork surface is handled by .bottom-ui-content */
   background: transparent;
@@ -780,6 +781,7 @@ body {
   padding: 20px 16px;
   overflow-y: auto;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 .position-controls::-webkit-scrollbar {
   display: none;

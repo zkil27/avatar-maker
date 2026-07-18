@@ -36,6 +36,7 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
   const tintedHairBangsCache = useRef({ color: null, canvas: null, originalSrc: null });
   const tintedClothesCache = useRef({ color: null, canvas: null, originalSrc: null });
   const tintedTextCache = useRef({ color: null, frame3: null, frame4: null });
+  const tintedFrameCache = useRef({ hue: null, frame1: null, frame2: null });
   
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
@@ -78,17 +79,28 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
 
     // No more drawCentered function here, logic moved inside loop
 
-    // Apply badge hue rotation to the base frames
-    if (badgeHue) {
-      ctx.filter = `hue-rotate(${badgeHue}deg)`;
-    }
-
     if (badgeOpacity > 0) {
       ctx.save();
       ctx.globalAlpha = badgeOpacity;
       // 1. Draw frame backgrounds
       const frame1 = loadedImagesRef.current.get('frame1');
-      if (frame1) ctx.drawImage(frame1, 0, 0, size, size);
+      if (frame1) {
+        if (badgeHue) {
+          if (tintedFrameCache.current.hue !== badgeHue || !tintedFrameCache.current.frame1) {
+            const tCanvas = document.createElement('canvas');
+            tCanvas.width = frame1.width;
+            tCanvas.height = frame1.height;
+            const tCtx = tCanvas.getContext('2d');
+            tCtx.filter = `hue-rotate(${badgeHue}deg)`;
+            tCtx.drawImage(frame1, 0, 0);
+            tintedFrameCache.current.frame1 = tCanvas;
+            tintedFrameCache.current.hue = badgeHue;
+          }
+          ctx.drawImage(tintedFrameCache.current.frame1, 0, 0, size, size);
+        } else {
+          ctx.drawImage(frame1, 0, 0, size, size);
+        }
+      }
 
       // 2. Draw texture with soft-light ONLY over the background
       const texture = loadedImagesRef.current.get('frame_texture');
@@ -99,9 +111,6 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
       }
       ctx.restore();
     }
-
-    // Reset filter before drawing the avatar so it doesn't get hue-rotated
-    ctx.filter = 'none';
 
     // 3. Draw Avatar (BEHIND frame2)
     sortedCategories.forEach(({ key }) => {
@@ -196,18 +205,26 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
     if (badgeOpacity > 0) {
       ctx.save();
       ctx.globalAlpha = badgeOpacity;
-      
-      // Re-apply hue rotation for the outer brown ring
-      if (badgeHue) {
-        ctx.filter = `hue-rotate(${badgeHue}deg)`;
-      }
 
       // 4. Draw overlays (frame2, frame3, frame4)
       const frame2 = loadedImagesRef.current.get('frame2');
-      if (frame2) ctx.drawImage(frame2, 0, 0, size, size);
-
-      // Reset filter for the white overlays
-      ctx.filter = 'none';
+      if (frame2) {
+        if (badgeHue) {
+          if (tintedFrameCache.current.hue !== badgeHue || !tintedFrameCache.current.frame2) {
+            const tCanvas = document.createElement('canvas');
+            tCanvas.width = frame2.width;
+            tCanvas.height = frame2.height;
+            const tCtx = tCanvas.getContext('2d');
+            tCtx.filter = `hue-rotate(${badgeHue}deg)`;
+            tCtx.drawImage(frame2, 0, 0);
+            tintedFrameCache.current.frame2 = tCanvas;
+            tintedFrameCache.current.hue = badgeHue;
+          }
+          ctx.drawImage(tintedFrameCache.current.frame2, 0, 0, size, size);
+        } else {
+          ctx.drawImage(frame2, 0, 0, size, size);
+        }
+      }
 
       const frame3 = loadedImagesRef.current.get('frame3');
       const frame4 = loadedImagesRef.current.get('frame4');

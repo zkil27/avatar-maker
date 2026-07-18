@@ -64,9 +64,14 @@ export default function CustomizationControls({
   React.useEffect(() => {
     const el = tabsRef.current;
     if (!el) return;
-    const block = (e) => e.preventDefault();
-    el.addEventListener('wheel', block, { passive: false });
-    return () => el.removeEventListener('wheel', block);
+    const handleWheel = (e) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
   }, []);
 
   const allTabs = [...CATEGORY_KEYS, 'badge', 'text'];
