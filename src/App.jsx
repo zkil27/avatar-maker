@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+
 import AvatarCanvas, { INITIAL_STATE } from './components/AvatarCanvas';
 import CustomizationControls from './components/CustomizationControls';
 
@@ -460,6 +461,22 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Version label */}
+      <span style={{
+        position: 'fixed',
+        bottom: '8px',
+        left: '10px',
+        fontSize: '0.65rem',
+        opacity: 0.25,
+        color: '#fff',
+        fontFamily: 'monospace',
+        pointerEvents: 'none',
+        zIndex: 9999,
+        userSelect: 'none'
+      }}>
+        v{__APP_VERSION__}
+      </span>
     </div>
   );
 }
