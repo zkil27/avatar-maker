@@ -21,7 +21,7 @@ export default function App() {
   const [badgeHue, setBadgeHue] = useState(0); // 0 to 360 hue rotation
   const [badgeTextColor, setBadgeTextColor] = useState('#ffffff'); // Text overlay color
   const DEFAULT_LAYER_POSITIONS = {
-    global: { x: 0, y: 15, scale: 0.75, rotation: 0 },
+    global: { x: 0, y: 15, scale: 0.85, rotation: 0 },
     skin: { x: 0, y: 0, scale: 1, rotation: 0 },
     eyes: { x: 0, y: 0, scale: 1, rotation: 0 },
     mouth: { x: 0, y: 0, scale: 1, rotation: 0 },
@@ -40,6 +40,8 @@ export default function App() {
   const [badgeImageURL, setBadgeImageURL] = useState(null);
   const [badgeOpacity, setBadgeOpacity] = useState(1);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+  const toastTimerRef = useRef(null);
   const isInitialMount = useRef(true);
   const downloadingRef = useRef(false);
   const canvasRef = useRef(null);
@@ -53,29 +55,46 @@ export default function App() {
   const shockwaveRef = useRef(null);
   const fabRef = useRef(null);
 
+  const showToast = (message, duration = 4000) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastMessage(message);
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, duration);
+  };
+
   const { contextSafe } = useGSAP({ scope: containerRef });
 
   const getBadgeProps = () => {
     if (typeof window === 'undefined') return { scale: 1, y: 0 };
+    const isDesktop = window.innerWidth >= 768;
+    if (isDesktop) return { scale: 1, y: 0 };
+
     const H = window.innerHeight;
-    const vh = H / 100;
+    const W = window.innerWidth;
     
-    // Cap the base size to avoid overflowing the 480px container on wide screens
-    const baseSizePx = Math.min(28 * vh, 280);
+    // The animated-wrapper has a fixed base size of 400px (from the canvas)
+    const baseSizePx = 400;
     
-    // Make the badge larger (up to 1.6x) so it's not tiny on big screens
-    let scale = Math.min(1.6, (H * 0.4) / baseSizePx); 
+    // The available empty space above the panel is 42vh (H - 0.58*H)
+    const targetVisualBottom = H - (0.58 * H);
+    const emptySpace = targetVisualBottom;
+    
+    // We want the visual size on screen to comfortably fit
+    const targetNormalSize = Math.min(emptySpace * 0.75, W * 0.65);
+    
+    // The .id-card-wrapper has transform: scale(0.85), so we must account for it
+    let scale = targetNormalSize / (baseSizePx * 0.85);
     const maxScaleForContainer = 440 / baseSizePx;
     scale = Math.min(scale, maxScaleForContainer);
     
-    // The bottom panel has a fixed height of 58vh.
-    // When it's open, its top edge is at 42vh (H - 0.58*H).
-    const targetVisualBottom = H - (0.58 * H);
-    
     // Perfectly center the badge in the empty brown space above the panel
     const emptySpaceCenter = targetVisualBottom / 2;
+    
+    // The wrapper has 32px top padding, 4px border, and 24px inner padding.
     const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
-    const requiredY = requiredLocalCenter - 24 - (baseSizePx / 2);
+    const requiredY = requiredLocalCenter - 28 - (baseSizePx / 2);
     
     return { scale, y: requiredY };
   };
@@ -108,6 +127,9 @@ export default function App() {
 
   useGSAP(() => {
     if (appState !== 'editing' || isInitialMount.current) return;
+    const isDesktop = window.innerWidth >= 768;
+    if (isDesktop) return;
+
 
     if (isFocusMode) {
       gsap.to(bottomPanelRef.current, { y: '100%', duration: 0.5, ease: 'power3.inOut' });
@@ -115,16 +137,16 @@ export default function App() {
       
       const H = window.innerHeight;
       const W = window.innerWidth;
-      const vh = H / 100;
-      const baseSizePx = Math.min(28 * vh, 280);
+      
+      const baseSizePx = 400;
       const targetSize = Math.min(W, H) * 0.9; 
       const finalTargetSize = Math.min(targetSize, 440);
-      const scale = finalTargetSize / baseSizePx;
+      const scale = finalTargetSize / (baseSizePx * 0.85);
       
       // Use the same coordinate system math as getBadgeProps to center it vertically on the whole screen
       const emptySpaceCenter = H / 2;
       const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
-      const targetY = requiredLocalCenter - 24 - (baseSizePx / 2);
+      const targetY = requiredLocalCenter - 28 - (baseSizePx / 2);
       
       gsap.to(previewContainerRef.current, {
         scale: scale,
@@ -188,24 +210,35 @@ export default function App() {
 
     setAppState('saving');
 
+    const isDesktop = window.innerWidth >= 768;
     const tl = gsap.timeline();
 
     // 1. UI Drop-away smoothly
     tl.to(bottomPanelRef.current, {
-      y: '100%',
+      x: isDesktop ? '120%' : '0%',
+      y: isDesktop ? '0%' : '100%',
       duration: 0.8,
       ease: 'power3.inOut'
     });
 
     // 2. Smoothly float to the exact center of the screen
-    const H = window.innerHeight;
-    const vh = H / 100;
-    const emptySpaceCenter = H / 2;
-    const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
-    const targetY = requiredLocalCenter - 24 - (14 * vh);
+    let targetY = 0;
+    let targetScale = 1.2;
+    
+    if (!isDesktop) {
+      const H = window.innerHeight;
+      const W = window.innerWidth;
+      const emptySpaceCenter = H / 2;
+      const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
+      targetY = requiredLocalCenter - 28 - 200; // 200 is baseSizePx/2
+      
+      const targetSize = Math.min(W, H) * 0.9;
+      const finalTargetSize = Math.min(targetSize, 440);
+      targetScale = finalTargetSize / (400 * 0.85);
+    }
 
     tl.to(previewContainerRef.current, {
-      scale: 1.4,
+      scale: targetScale,
       y: targetY,
       rotationZ: 0,
       duration: 1.2,
@@ -267,11 +300,11 @@ export default function App() {
       document.body.removeChild(link);
       
       // 3. Inform user of the universal fallback
-      alert("Downloading... If nothing happens, you can simply long-press (or right-click) the badge to save it!");
+      showToast("📌 Downloading... If nothing happens, long-press the badge to save it!");
       
     } catch (error) {
       console.error('Download/Share failed:', error);
-      alert("To save your badge, simply long-press (or right-click) the image!");
+      showToast("📌 Long-press (or right-click) the badge to save it!");
     }
   };
 
@@ -307,7 +340,19 @@ export default function App() {
       gsap.set([bottomPanelRef.current, mainCardRef.current, finalBtnRef.current], { clearProps: 'all' });
       
       // Keep giant avatar set
-      const { scale, y } = getGiantAvatarProps();
+      let scale = 1.2;
+      let y = 0;
+      if (!isDesktop) {
+        const H = window.innerHeight;
+        const W = window.innerWidth;
+        const emptySpaceCenter = H / 2;
+        const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
+        y = requiredLocalCenter - 28 - 200; // 200 is baseSizePx/2
+        
+        const targetSize = Math.min(W, H) * 0.9;
+        const finalTargetSize = Math.min(targetSize, 440);
+        scale = finalTargetSize / (400 * 0.85);
+      }
       gsap.set(previewContainerRef.current, { scale, y, clearProps: 'rotation' });
       
       // Move cardWrapper to top of screen for drop-in
@@ -325,8 +370,10 @@ export default function App() {
   });
 
   return (
-    <div className="app-container" ref={containerRef}>
+    <>
       <TutorialModal />
+      <div className="app-container" ref={containerRef}>
+
       {/* Centered Wrapper for Notebook Page */}
       <div className="id-card-wrapper" ref={cardWrapperRef}>
         
@@ -478,5 +525,11 @@ export default function App() {
         v{__APP_VERSION__}
       </span>
     </div>
+    {toastMessage && (
+      <div className={`camp-toast ${toastMessage ? 'show' : ''}`}>
+        {toastMessage}
+      </div>
+    )}
+    </>
   );
 }

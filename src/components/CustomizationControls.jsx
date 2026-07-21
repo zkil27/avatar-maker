@@ -133,14 +133,14 @@ export default function CustomizationControls({
                 }}
                 style={{ 
                   background: color === 'none' 
-                    ? 'linear-gradient(to top right, white calc(50% - 2px), red 50%, white calc(50% + 2px))'
+                    ? 'linear-gradient(to top right, white calc(50% - 2px), #C0392B 50%, white calc(50% + 2px))'
                     : color, 
                   flexShrink: 0, 
                   width: '40px', 
                   height: '40px', 
                   borderRadius: '50%', 
-                  border: (activeCategory === 'clothes' ? clothesColor : hairColor) === color ? '3px solid white' : '2px solid rgba(0,0,0,0.2)',
-                  boxShadow: (activeCategory === 'clothes' ? clothesColor : hairColor) === color ? '0 0 0 2px red' : '0 2px 4px rgba(0,0,0,0.1)',
+                  border: '2px solid rgba(0,0,0,0.2)',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                   cursor: 'pointer'
                 }}
                 title={color === 'none' ? 'No Tint' : `Color ${color}`}

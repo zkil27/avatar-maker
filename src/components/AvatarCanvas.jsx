@@ -56,6 +56,10 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.warn('Canvas 2d context not available');
+      return;
+    }
     const dpr = window.devicePixelRatio || 1;
     const size = 400;
 
@@ -120,10 +124,10 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
         ctx.save();
         
         const layers = layerPositionsRef.current || {};
-        const globalPos = layers.global || { scale: 0.75, x: 0, y: 15, rotation: 0 };
+        const globalPos = layers.global || { scale: 0.85, x: 0, y: 15, rotation: 0 };
         const localPos = layers[key] || { scale: 1, x: 0, y: 0, rotation: 0 };
         
-        const targetWidth = size * (globalPos.scale || 0.75) * (localPos.scale || 1);
+        const targetWidth = size * (globalPos.scale || 0.85) * (localPos.scale || 1);
         const scale = targetWidth / img.width;
         const dw = targetWidth;
         const dh = img.height * scale;
@@ -138,8 +142,8 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
         ctx.translate(centerX, centerY);
         ctx.rotate((globalPos.rotation || 0) * Math.PI / 180);
         
-        const localDx = size * ((localPos.x || 0) / 100) * (globalPos.scale || 0.75);
-        const localDy = size * ((localPos.y || 0) / 100) * (globalPos.scale || 0.75);
+        const localDx = size * ((localPos.x || 0) / 100) * (globalPos.scale || 0.85);
+        const localDy = size * ((localPos.y || 0) / 100) * (globalPos.scale || 0.85);
         ctx.translate(localDx, localDy);
         ctx.rotate((localPos.rotation || 0) * Math.PI / 180);
 
@@ -381,8 +385,8 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
     setLayerPositions(prev => {
       const layer = activePositionLayer || 'global';
       const current = prev[layer] || { x: 0, y: 0, scale: 1, rotation: 0 };
-      const scaleAdjustment = layer === 'global' ? 1 : (prev.global?.scale || 0.75);
-      
+      const scaleAdjustment = layer === 'global' ? 1 : (prev.global?.scale || 0.85);
+
       if (activePointers.current.size === 1) {
         // Drag to pan
         return {

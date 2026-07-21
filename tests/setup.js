@@ -14,9 +14,21 @@ HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
   arc: vi.fn(),
   fill: vi.fn(),
   stroke: vi.fn(),
+  scale: vi.fn(),
+  save: vi.fn(),
+  restore: vi.fn(),
+  translate: vi.fn(),
+  rotate: vi.fn(),
+  clip: vi.fn(),
+  setTransform: vi.fn(),
+  globalAlpha: 1,
+  globalCompositeOperation: 'source-over',
 });
 
 HTMLCanvasElement.prototype.toDataURL = vi.fn().mockReturnValue('data:image/png;base64,mockDataURL');
+
+Element.prototype.scrollTo = vi.fn();
+Element.prototype.scrollIntoView = vi.fn();
 
 global.Image = class {
   constructor() {

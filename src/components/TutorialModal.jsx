@@ -111,7 +111,15 @@ export default function TutorialModal() {
         </div>
 
         <div className="tutorial-nav">
-          <div style={{ width: '80px' }} /> {/* Spacer for centering dots */}
+          <div style={{ width: '80px', display: 'flex', justifyContent: 'flex-start' }}>
+            <button 
+              className="tutorial-nav-btn" 
+              style={{ visibility: currentPage > 0 ? 'visible' : 'hidden', padding: '6px 12px' }}
+              onClick={handleBack}
+            >
+              Back
+            </button>
+          </div>
           
           <div className="tutorial-dots">
             {[0, 1, 2].map(idx => (
@@ -122,10 +130,10 @@ export default function TutorialModal() {
           <div style={{ width: '80px', display: 'flex', justifyContent: 'flex-end' }}>
             <button 
               className="tutorial-nav-btn primary" 
-              style={{ visibility: currentPage === totalPages - 1 ? 'visible' : 'hidden', padding: '6px 12px' }}
+              style={{ padding: '6px 12px' }}
               onClick={handleNext}
             >
-              Start!
+              {currentPage === totalPages - 1 ? 'Start!' : 'Next'}
             </button>
           </div>
         </div>
