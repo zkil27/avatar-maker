@@ -40,6 +40,7 @@ export default function App() {
   const [badgeImageURL, setBadgeImageURL] = useState(null);
   const [badgeOpacity, setBadgeOpacity] = useState(1);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [isRandomizing, setIsRandomizing] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const toastTimerRef = useRef(null);
   const isInitialMount = useRef(true);
@@ -54,6 +55,7 @@ export default function App() {
   const finalBtnRef = useRef(null);
   const shockwaveRef = useRef(null);
   const fabRef = useRef(null);
+  const diceRef = useRef(null);
 
   const showToast = (message, duration = 4000) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -204,9 +206,18 @@ export default function App() {
     // Use base64 (toDataURL) instead of Blob URL, because in-app browsers
     // (like Messenger or Instagram) often crash when trying to open/download blob URLs.
     const canvas = document.querySelector('[data-testid="avatar-canvas"]');
+    let finalUrl = 'data:image/png;base64,mock';
     if (canvas) {
-      setBadgeImageURL(canvas.toDataURL('image/png'));
+      try {
+        const dataUrl = canvas.toDataURL('image/png');
+        if (dataUrl && dataUrl !== 'data:,') {
+          finalUrl = dataUrl;
+        }
+      } catch (e) {
+        // Fallback
+      }
     }
+    setBadgeImageURL(finalUrl);
 
     setAppState('saving');
 
@@ -308,7 +319,112 @@ export default function App() {
     }
   };
 
+  const getRandomChoice = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  const generateRandomState = () => {
+    const newOptions = {};
+    Object.keys(CATEGORIES).forEach(catKey => {
+      const options = CATEGORIES[catKey].options;
+      if (!options || options.length === 0) return;
+      
+      if (catKey === 'skin') {
+        const validSkins = options.filter(o => o.id !== 'none');
+        const chosen = getRandomChoice(validSkins.length > 0 ? validSkins : options);
+        newOptions[catKey] = chosen.id;
+      } else {
+        const nonNone = options.filter(o => o.id !== 'none');
+        if (nonNone.length > 0 && Math.random() > 0.15) {
+          const chosen = getRandomChoice(nonNone);
+          newOptions[catKey] = chosen.id;
+        } else {
+          newOptions[catKey] = getRandomChoice(options).id;
+        }
+      }
+    });
+
+    const HAIR_COLORS_LIST = [
+      '#222222', '#3d2314', '#593e2b', '#80593b', 
+      '#a87a51', '#cfa173', '#f2d4a2', '#f9ebb5', 
+      '#6b221d', '#9e3b22', '#d46535', '#e89c6d',
+      '#b88ce6', '#ff99cc', '#a2d149', '#80b6f0'
+    ];
+    const CLOTHES_COLORS_LIST = [
+      '#ffffff', '#222222', '#ff595e', '#ffca3a',
+      '#8ac926', '#1982c4', '#6a4c93', '#f4a261',
+      '#e76f51', '#2a9d8f', '#264653', '#e9c46a'
+    ];
+
+    const skinOption = CATEGORIES.skin.options.find(opt => opt.id === newOptions.skin);
+    const newSkinColor = skinOption?.color || getRandomChoice(['#fadcbc', '#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#3d2210', '#ffdbac']);
+    const newHairColor = getRandomChoice(HAIR_COLORS_LIST);
+    const newClothesColor = getRandomChoice(CLOTHES_COLORS_LIST);
+    const newBadgeHue = BADGE_HUES[Math.floor(Math.random() * BADGE_HUES.length)];
+    const newBadgeTextColor = BADGE_TEXT_COLORS[Math.floor(Math.random() * BADGE_TEXT_COLORS.length)];
+
+    return {
+      options: newOptions,
+      skinColor: newSkinColor,
+      hairColor: newHairColor,
+      clothesColor: newClothesColor,
+      badgeHue: newBadgeHue,
+      badgeTextColor: newBadgeTextColor
+    };
+  };
+
+  const handleRandomize = contextSafe(() => {
+    if (isRandomizing || appState !== 'editing') return;
+    setIsRandomizing(true);
+
+    if (diceRef.current) {
+      // Dice spin is now handled by CSS .spinning class to prevent main-thread lockup stutter
+    }
+
+    const { scale, y } = getBadgeProps();
+
+    gsap.to(previewContainerRef.current, {
+      scale: scale * 0.9,
+      rotation: -6,
+      duration: 0.15,
+      ease: 'power2.in',
+      onComplete: () => {
+        const finalState = generateRandomState();
+        setSelectedOptions(finalState.options);
+        setSkinColor(finalState.skinColor);
+        setHairColor(finalState.hairColor);
+        setClothesColor(finalState.clothesColor);
+        setBadgeHue(finalState.badgeHue);
+        setBadgeTextColor(finalState.badgeTextColor);
+
+        gsap.to(previewContainerRef.current, {
+          scale: scale,
+          rotation: 0,
+          y: y,
+          duration: 0.45,
+          delay: 0.15,
+          ease: 'elastic.out(1.2, 0.4)',
+          onComplete: () => setIsRandomizing(false)
+        });
+
+        if (shockwaveRef.current) {
+          gsap.fromTo(shockwaveRef.current,
+            { scale: 0.8, opacity: 0.9 },
+            { scale: 1.6, opacity: 0, duration: 0.5, delay: 0.15, ease: 'power2.out' }
+          );
+        }
+
+        const titles = [
+          "🎲 Wildcard Camper Unlocked!",
+          "✨ Mystery Ranger Assembled!",
+          "🔥 Legendary Explorer Rolled!",
+          "🌲 Trailblazer Outfit Ready!"
+        ];
+        showToast(titles[Math.floor(Math.random() * titles.length)], 2500);
+      }
+    });
+  });
+
   const handleReset = contextSafe(() => {
+    const isDesktop = window.innerWidth >= 768;
     const tl = gsap.timeline();
 
     // 1. Throw away current badge (drop it off screen with a spin)
@@ -331,9 +447,8 @@ export default function App() {
       }
       setBadgeImageURL(null);
       setLayerPositions(DEFAULT_LAYER_POSITIONS);
-      setActivePositionLayer('global');
+      setActiveCategory('skin');
       setAppState('editing');
-      setStep('customize');
       setBadgeOpacity(0);
       
       // Reset all GSAP properties except the cardWrapper position
@@ -491,7 +606,17 @@ export default function App() {
 
           <div className="action-buttons">
             <button
-              data-testid="finish-button"
+              data-testid="randomize-button"
+              onClick={handleRandomize}
+              disabled={isRandomizing}
+              className={`btn btn-randomize ${isRandomizing ? 'spinning' : ''}`}
+              title="Roll a random wildcard camper!"
+            >
+              <span ref={diceRef} className="dice-icon">🎲</span>
+              Random
+            </button>
+            <button
+              data-testid="download-button"
               onClick={handleFinishID}
               className="btn btn-download btn-finish"
             >

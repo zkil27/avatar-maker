@@ -1,7 +1,12 @@
 import React, { useState, useRef } from 'react';
 
 export default function TutorialModal() {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return !localStorage.getItem('seen_tutorial');
+    }
+    return false;
+  });
   const [currentPage, setCurrentPage] = useState(0);
   const totalPages = 3;
 
@@ -9,6 +14,9 @@ export default function TutorialModal() {
   const touchEndX = useRef(0);
 
   const handleDismiss = () => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('seen_tutorial', 'true');
+    }
     setIsOpen(false);
   };
 

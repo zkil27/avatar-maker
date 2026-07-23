@@ -30,6 +30,10 @@ HTMLCanvasElement.prototype.toDataURL = vi.fn().mockReturnValue('data:image/png;
 Element.prototype.scrollTo = vi.fn();
 Element.prototype.scrollIntoView = vi.fn();
 
+if (typeof window !== 'undefined' && window.localStorage) {
+  window.localStorage.setItem('seen_tutorial', 'true');
+}
+
 global.Image = class {
   constructor() {
     this.onload = null;

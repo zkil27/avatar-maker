@@ -303,6 +303,36 @@ body {
   transform: rotate(1.5deg) scale(0.98);
 }
 
+.btn-randomize {
+  background: rgba(217, 108, 74, 0.95); /* Terracotta orange masking tape */
+  color: #ffffff;
+  transform: rotate(-1deg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.btn-randomize:hover {
+  background: rgba(217, 108, 74, 1);
+  transform: rotate(-0.5deg) scale(1.02);
+}
+
+.btn-randomize:active {
+  transform: rotate(-1deg) scale(0.98);
+}
+
+.btn-randomize.spinning {
+  background: rgba(125, 140, 97, 0.95);
+  color: #ffffff;
+}
+
+.dice-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
 .btn-finish {
   padding: 16px 24px;
   font-size: 1.1rem;
@@ -1302,4 +1332,14 @@ input[type=range]:focus {
   .focus-fab-wrapper {
     display: none;
   }
+}
+/* Randomize Dice Spin Animation */
+.btn-randomize.spinning .dice-icon {
+  display: inline-block;
+  animation: dice-spin 0.6s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+@keyframes dice-spin {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(360deg) scale(1.2); }
+  100% { transform: rotate(720deg) scale(1); }
 }
