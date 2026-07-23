@@ -36,6 +36,8 @@ export default function CustomizationControls({
 }) {
   const tabsRef = useRef(null);
   const paletteRef = useRef(null);
+  const paletteScrollRef = useRef(null);
+  const optionsGridRef = useRef(null);
 
   useGSAP(() => {
     if (!paletteRef.current) return;
@@ -62,16 +64,84 @@ export default function CustomizationControls({
   };
 
   React.useEffect(() => {
-    const el = tabsRef.current;
-    if (!el) return;
-    const handleWheel = (e) => {
-      if (e.deltaY !== 0) {
+    const setupScroll = (el, horizontal = true, vertical = false) => {
+      if (!el) return null;
+      let isDown = false;
+      let startX, startY;
+      let scrollLeft, scrollTop;
+      let isDragging = false;
+
+      const onMouseDown = (e) => {
+        isDown = true;
+        isDragging = false;
+        startX = e.pageX - el.offsetLeft;
+        startY = e.pageY - el.offsetTop;
+        scrollLeft = el.scrollLeft;
+        scrollTop = el.scrollTop;
+      };
+      const onMouseLeave = () => {
+        isDown = false;
+      };
+      const onMouseUp = () => {
+        isDown = false;
+      };
+      const onMouseMove = (e) => {
+        if (!isDown) return;
         e.preventDefault();
-        el.scrollLeft += e.deltaY;
-      }
+        const x = e.pageX - el.offsetLeft;
+        const y = e.pageY - el.offsetTop;
+        const walkX = (x - startX) * 2;
+        const walkY = (y - startY) * 2;
+        if (horizontal && Math.abs(walkX) > 5) isDragging = true;
+        if (vertical && Math.abs(walkY) > 5) isDragging = true;
+        
+        if (horizontal) el.scrollLeft = scrollLeft - walkX;
+        if (vertical) el.scrollTop = scrollTop - walkY;
+      };
+      
+      const onClick = (e) => {
+        if (isDragging) {
+          e.preventDefault();
+          e.stopPropagation();
+          isDragging = false;
+        }
+      };
+
+      const handleWheel = (e) => {
+        if (horizontal && !vertical) {
+          if (e.deltaY !== 0) {
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+          }
+        }
+      };
+
+      el.addEventListener('mousedown', onMouseDown);
+      el.addEventListener('mouseleave', onMouseLeave);
+      el.addEventListener('mouseup', onMouseUp);
+      el.addEventListener('mousemove', onMouseMove);
+      el.addEventListener('click', onClick, { capture: true });
+      if (horizontal && !vertical) el.addEventListener('wheel', handleWheel, { passive: false });
+
+      return () => {
+        el.removeEventListener('mousedown', onMouseDown);
+        el.removeEventListener('mouseleave', onMouseLeave);
+        el.removeEventListener('mouseup', onMouseUp);
+        el.removeEventListener('mousemove', onMouseMove);
+        el.removeEventListener('click', onClick, { capture: true });
+        if (horizontal && !vertical) el.removeEventListener('wheel', handleWheel);
+      };
     };
-    el.addEventListener('wheel', handleWheel, { passive: false });
-    return () => el.removeEventListener('wheel', handleWheel);
+
+    const cleanupTabs = setupScroll(tabsRef.current, true, false);
+    const cleanupPalette = setupScroll(paletteScrollRef.current, true, false);
+    const cleanupOptions = setupScroll(optionsGridRef.current, false, true);
+
+    return () => {
+      if (cleanupTabs) cleanupTabs();
+      if (cleanupPalette) cleanupPalette();
+      if (cleanupOptions) cleanupOptions();
+    };
   }, []);
 
   const allTabs = [...CATEGORY_KEYS, 'badge', 'text'];
@@ -117,7 +187,7 @@ export default function CustomizationControls({
 
       <div ref={paletteRef} className="hair-palette-container">
         <div className="hair-palette-inner">
-          <div className="hair-palette">
+          <div ref={paletteScrollRef} className="hair-palette">
             {(activeCategory === 'clothes' ? CLOTHES_COLORS : HAIR_COLORS).map(color => (
               <div
                 key={color}
@@ -150,7 +220,7 @@ export default function CustomizationControls({
         </div>
       </div>
 
-      <div className="options-grid">
+      <div ref={optionsGridRef} className="options-grid">
         {activeCategory === 'badge' ? (
           BADGE_HUES.map(hue => (
             <div
