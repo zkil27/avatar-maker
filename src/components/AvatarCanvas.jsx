@@ -28,6 +28,76 @@ const loadImage = (path) => {
   });
 };
 
+const applyHueRotation = (img, hueShift) => {
+  const tCanvas = document.createElement('canvas');
+  tCanvas.width = img.width;
+  tCanvas.height = img.height;
+  const tCtx = tCanvas.getContext('2d');
+  tCtx.drawImage(img, 0, 0);
+
+  if (!hueShift) return tCanvas;
+
+  try {
+    const imgData = tCtx.getImageData(0, 0, img.width, img.height);
+    const data = imgData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i+3] > 0) {
+        const r = data[i] / 255;
+        const g = data[i+1] / 255;
+        const b = data[i+2] / 255;
+
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+
+        if (max === min) {
+          h = s = 0;
+        } else {
+          const d = max - min;
+          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+          switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+          }
+          h /= 6;
+        }
+
+        h = (h * 360 + hueShift) % 360;
+        h /= 360;
+
+        let newR, newG, newB;
+        if (s === 0) {
+          newR = newG = newB = l;
+        } else {
+          const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+          };
+          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+          const p = 2 * l - q;
+          newR = hue2rgb(p, q, h + 1/3);
+          newG = hue2rgb(p, q, h);
+          newB = hue2rgb(p, q, h - 1/3);
+        }
+
+        data[i] = Math.round(newR * 255);
+        data[i+1] = Math.round(newG * 255);
+        data[i+2] = Math.round(newB * 255);
+      }
+    }
+    tCtx.putImageData(imgData, 0, 0);
+  } catch (err) {
+    console.warn('Canvas getImageData tainted, skipping frame tint:', err);
+  }
+
+  return tCanvas;
+};
+
 const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, hairColor, clothesColor, badgeHue, layerPositions, setLayerPositions, activePositionLayer, isPositioning, badgeOpacity = 1, badgeTextColor = '#ffffff' }, ref) => {
   const mainCanvasRef = useRef(null);
   const loadedImagesRef = useRef(new Map());
@@ -91,13 +161,7 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
       if (frame1) {
         if (badgeHue) {
           if (tintedFrameCache.current.hue !== badgeHue || !tintedFrameCache.current.frame1) {
-            const tCanvas = document.createElement('canvas');
-            tCanvas.width = frame1.width;
-            tCanvas.height = frame1.height;
-            const tCtx = tCanvas.getContext('2d');
-            tCtx.filter = `hue-rotate(${badgeHue}deg)`;
-            tCtx.drawImage(frame1, 0, 0);
-            tintedFrameCache.current.frame1 = tCanvas;
+            tintedFrameCache.current.frame1 = applyHueRotation(frame1, badgeHue);
             tintedFrameCache.current.hue = badgeHue;
           }
           ctx.drawImage(tintedFrameCache.current.frame1, 0, 0, size, size);
@@ -222,13 +286,7 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
       if (frame2) {
         if (badgeHue) {
           if (tintedFrameCache.current.hue !== badgeHue || !tintedFrameCache.current.frame2) {
-            const tCanvas = document.createElement('canvas');
-            tCanvas.width = frame2.width;
-            tCanvas.height = frame2.height;
-            const tCtx = tCanvas.getContext('2d');
-            tCtx.filter = `hue-rotate(${badgeHue}deg)`;
-            tCtx.drawImage(frame2, 0, 0);
-            tintedFrameCache.current.frame2 = tCanvas;
+            tintedFrameCache.current.frame2 = applyHueRotation(frame2, badgeHue);
             tintedFrameCache.current.hue = badgeHue;
           }
           ctx.drawImage(tintedFrameCache.current.frame2, 0, 0, size, size);

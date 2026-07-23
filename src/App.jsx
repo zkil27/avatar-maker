@@ -219,15 +219,28 @@ export default function App() {
     }
     setBadgeImageURL(finalUrl);
 
+    const isDesktop = window.innerWidth >= 768;
+
+    if (isDesktop) {
+      // Standard save on PC: skip the finish screen animation and download immediately
+      const link = document.createElement('a');
+      link.download = 'my-camper-id.png';
+      link.href = finalUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("📌 Saved to your device!");
+      return;
+    }
+
     setAppState('saving');
 
-    const isDesktop = window.innerWidth >= 768;
     const tl = gsap.timeline();
 
     // 1. UI Drop-away smoothly
     tl.to(bottomPanelRef.current, {
-      x: isDesktop ? '120%' : '0%',
-      y: isDesktop ? '0%' : '100%',
+      x: '0%',
+      y: '100%',
       duration: 0.8,
       ease: 'power3.inOut'
     });
@@ -236,17 +249,15 @@ export default function App() {
     let targetY = 0;
     let targetScale = 1.2;
     
-    if (!isDesktop) {
-      const H = window.innerHeight;
-      const W = window.innerWidth;
-      const emptySpaceCenter = H / 2;
-      const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
-      targetY = requiredLocalCenter - 28 - 200; // 200 is baseSizePx/2
-      
-      const targetSize = Math.min(W, H) * 0.9;
-      const finalTargetSize = Math.min(targetSize, 440);
-      targetScale = finalTargetSize / (400 * 0.85);
-    }
+    const H = window.innerHeight;
+    const W = window.innerWidth;
+    const emptySpaceCenter = H / 2;
+    const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
+    targetY = requiredLocalCenter - 28 - 200; // 200 is baseSizePx/2
+    
+    const targetSize = Math.min(W, H) * 0.9;
+    const finalTargetSize = Math.min(targetSize, 440);
+    targetScale = finalTargetSize / (400 * 0.85);
 
     tl.to(previewContainerRef.current, {
       scale: targetScale,
@@ -280,8 +291,10 @@ export default function App() {
     setTimeout(() => { downloadingRef.current = false; }, 1000);
 
     try {
-      // 1. Try Web Share API (Best for mobile if fully supported)
-      if (navigator.share) {
+      const isDesktop = window.innerWidth >= 768;
+
+      // 1. Try Web Share API (Best for mobile if fully supported, skip on desktop for standard save)
+      if (!isDesktop && navigator.share) {
         try {
           // Convert base64 data URL to blob for sharing
           const fetchRes = await fetch(badgeImageURL);
@@ -620,7 +633,8 @@ export default function App() {
               onClick={handleFinishID}
               className="btn btn-download btn-finish"
             >
-              Finish ID
+              <span className="mobile-only">Finish ID</span>
+              <span className="desktop-only">Save Badge</span>
             </button>
             <button
               data-testid="reset-button"
