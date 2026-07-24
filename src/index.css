@@ -1314,6 +1314,12 @@ input[type=range]:focus {
     padding: 32px 48px;
   }
 
+  .app-container.app-state-saving .bottom-ui-panel,
+  .app-container.app-state-finished .bottom-ui-panel {
+    pointer-events: none;
+    visibility: hidden;
+  }
+
   .id-card-wrapper {
     flex: 1;
     max-width: 500px;
@@ -1350,4 +1356,48 @@ input[type=range]:focus {
 @media (min-width: 768px) {
   .mobile-only { display: none; }
   .desktop-only { display: inline; }
+}
+
+/* ========== TOP LEFT GUIDE BUTTON ========== */
+.guide-btn-topleft {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(244, 241, 234, 0.92);
+  color: var(--text-primary);
+  border: 2px solid var(--border-dark);
+  border-radius: 20px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.guide-btn-topleft:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.guide-btn-topleft:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.guide-btn-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.guide-btn-text {
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }

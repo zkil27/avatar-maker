@@ -37,6 +37,7 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState('skin');
   const [isLoading, setIsLoading] = useState(false);
   const [appState, setAppState] = useState('editing'); // 'editing', 'saving', 'finished'
+  const [showTutorial, setShowTutorial] = useState(false);
   const [badgeImageURL, setBadgeImageURL] = useState(null);
   const [badgeOpacity, setBadgeOpacity] = useState(1);
   const [isFocusMode, setIsFocusMode] = useState(false);
@@ -219,12 +220,14 @@ export default function App() {
 
     setAppState('saving');
 
+    const isDesktop = window.innerWidth >= 768;
     const tl = gsap.timeline();
 
     // 1. UI Drop-away smoothly
     tl.to(bottomPanelRef.current, {
       x: '0%',
-      y: '100%',
+      y: isDesktop ? '150vh' : '100%',
+      autoAlpha: isDesktop ? 0 : 1,
       duration: 0.8,
       ease: 'power3.inOut'
     });
@@ -233,15 +236,20 @@ export default function App() {
     let targetY = 0;
     let targetScale = 1.2;
     
-    const H = window.innerHeight;
-    const W = window.innerWidth;
-    const emptySpaceCenter = H / 2;
-    const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
-    targetY = requiredLocalCenter - 28 - 200; // 200 is baseSizePx/2
-    
-    const targetSize = Math.min(W, H) * 0.9;
-    const finalTargetSize = Math.min(targetSize, 440);
-    targetScale = finalTargetSize / (400 * 0.85);
+    if (!isDesktop) {
+      const H = window.innerHeight;
+      const W = window.innerWidth;
+      const emptySpaceCenter = H / 2;
+      const requiredLocalCenter = (emptySpaceCenter - 32) / 0.85;
+      targetY = requiredLocalCenter - 28 - 200; // 200 is baseSizePx/2
+      
+      const targetSize = Math.min(W, H) * 0.9;
+      const finalTargetSize = Math.min(targetSize, 440);
+      targetScale = finalTargetSize / (400 * 0.85);
+    } else {
+      targetY = 0;
+      targetScale = 1.1;
+    }
 
     tl.to(previewContainerRef.current, {
       scale: targetScale,
@@ -254,10 +262,15 @@ export default function App() {
       }
     }, "-=0.6");
 
-    // Clear any leftover wrapper translations
+    // For desktop, animate cardWrapperRef to exact horizontal center
+    const panelWidth = bottomPanelRef.current ? bottomPanelRef.current.offsetWidth : 480;
+    const shiftX = isDesktop ? (panelWidth + 48) / 2 : 0;
+
     tl.to(cardWrapperRef.current, {
+      x: shiftX,
       y: 0,
-      duration: 0.5
+      duration: 0.8,
+      ease: 'expo.inOut'
     }, "<");
 
     // 3. Make the Save button pop in playfully!
@@ -467,8 +480,8 @@ export default function App() {
       // Reset all GSAP properties except the cardWrapper position
       gsap.set([bottomPanelRef.current, mainCardRef.current, finalBtnRef.current], { clearProps: 'all' });
       
-      // Keep giant avatar set
-      let scale = 1.2;
+      // Keep badge set correctly for desktop vs mobile
+      let scale = 1;
       let y = 0;
       if (!isDesktop) {
         const H = window.innerHeight;
@@ -480,15 +493,19 @@ export default function App() {
         const targetSize = Math.min(W, H) * 0.9;
         const finalTargetSize = Math.min(targetSize, 440);
         scale = finalTargetSize / (400 * 0.85);
+      } else {
+        scale = 1;
+        y = 0;
       }
       gsap.set(previewContainerRef.current, { scale, y, clearProps: 'rotation' });
       
       // Move cardWrapper to top of screen for drop-in
-      gsap.set(cardWrapperRef.current, { y: '-100vh', rotationZ: -5, scale: 0.85 });
+      gsap.set(cardWrapperRef.current, { x: 0, y: '-100vh', rotationZ: -5, scale: 0.85 });
     });
 
     // 3. Drop the brand new badge in
     tl.to(cardWrapperRef.current, {
+      x: 0,
       y: 0,
       rotationZ: 0,
       duration: 0.7,
@@ -499,8 +516,21 @@ export default function App() {
 
   return (
     <>
-      <TutorialModal />
-      <div className="app-container" ref={containerRef}>
+      <TutorialModal forceOpen={showTutorial ? true : undefined} onClose={() => setShowTutorial(false)} />
+      
+      {/* Top-Left Guide Button */}
+      <button 
+        data-testid="guide-button"
+        className="guide-btn-topleft" 
+        onClick={() => setShowTutorial(true)}
+        aria-label="View Scout Guide"
+        title="View Scout Guide Instructions"
+      >
+        <span className="guide-btn-icon">📖</span>
+        <span className="guide-btn-text">Guide</span>
+      </button>
+
+      <div className={`app-container app-state-${appState}`} ref={containerRef}>
 
       {/* Centered Wrapper for Notebook Page */}
       <div className="id-card-wrapper" ref={cardWrapperRef}>
