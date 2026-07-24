@@ -287,6 +287,7 @@ export default function CustomizationControls({
                     onChange(activeCategory, option.id);
                   }
                 }}
+                style={{ wordBreak: 'break-word' }}
                 className={`option-btn ${isSelected ? 'selected' : ''}`}
               >
                 <div className="option-btn-content">

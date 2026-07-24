@@ -41,53 +41,28 @@ const applyHueRotation = (img, hueShift) => {
     const imgData = tCtx.getImageData(0, 0, img.width, img.height);
     const data = imgData.data;
 
+    const theta = hueShift * Math.PI / 180;
+    const cos = Math.cos(theta);
+    const sin = Math.sin(theta);
+    const m00 = 0.213 + cos*0.787 - sin*0.213;
+    const m01 = 0.715 - cos*0.715 - sin*0.715;
+    const m02 = 0.072 - cos*0.072 + sin*0.928;
+    const m10 = 0.213 - cos*0.213 + sin*0.143;
+    const m11 = 0.715 + cos*0.285 + sin*0.140;
+    const m12 = 0.072 - cos*0.072 - sin*0.283;
+    const m20 = 0.213 - cos*0.213 - sin*0.787;
+    const m21 = 0.715 - cos*0.715 + sin*0.715;
+    const m22 = 0.072 + cos*0.928 + sin*0.072;
+
     for (let i = 0; i < data.length; i += 4) {
       if (data[i+3] > 0) {
-        const r = data[i] / 255;
-        const g = data[i+1] / 255;
-        const b = data[i+2] / 255;
+        const r = data[i];
+        const g = data[i+1];
+        const b = data[i+2];
 
-        const max = Math.max(r, g, b), min = Math.min(r, g, b);
-        let h, s, l = (max + min) / 2;
-
-        if (max === min) {
-          h = s = 0;
-        } else {
-          const d = max - min;
-          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-          switch (max) {
-            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-            case g: h = (b - r) / d + 2; break;
-            case b: h = (r - g) / d + 4; break;
-          }
-          h /= 6;
-        }
-
-        h = (h * 360 + hueShift) % 360;
-        h /= 360;
-
-        let newR, newG, newB;
-        if (s === 0) {
-          newR = newG = newB = l;
-        } else {
-          const hue2rgb = (p, q, t) => {
-            if (t < 0) t += 1;
-            if (t > 1) t -= 1;
-            if (t < 1/6) return p + (q - p) * 6 * t;
-            if (t < 1/2) return q;
-            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-            return p;
-          };
-          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-          const p = 2 * l - q;
-          newR = hue2rgb(p, q, h + 1/3);
-          newG = hue2rgb(p, q, h);
-          newB = hue2rgb(p, q, h - 1/3);
-        }
-
-        data[i] = Math.round(newR * 255);
-        data[i+1] = Math.round(newG * 255);
-        data[i+2] = Math.round(newB * 255);
+        data[i]   = Math.min(255, Math.max(0, r * m00 + g * m01 + b * m02));
+        data[i+1] = Math.min(255, Math.max(0, r * m10 + g * m11 + b * m12));
+        data[i+2] = Math.min(255, Math.max(0, r * m20 + g * m21 + b * m22));
       }
     }
     tCtx.putImageData(imgData, 0, 0);
@@ -106,7 +81,7 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
   const tintedHairBangsCache = useRef({ color: null, canvas: null, originalSrc: null });
   const tintedClothesCache = useRef({ color: null, canvas: null, originalSrc: null });
   const tintedTextCache = useRef({ color: null, frame3: null, frame4: null });
-  const tintedFrameCache = useRef({ hue: null, frame1: null, frame2: null });
+  const tintedFrameCache = useRef({ hue1: null, hue2: null, frame1: null, frame2: null });
   
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
@@ -160,9 +135,9 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
       const frame1 = loadedImagesRef.current.get('frame1');
       if (frame1) {
         if (badgeHue) {
-          if (tintedFrameCache.current.hue !== badgeHue || !tintedFrameCache.current.frame1) {
+          if (tintedFrameCache.current.hue1 !== badgeHue || !tintedFrameCache.current.frame1) {
             tintedFrameCache.current.frame1 = applyHueRotation(frame1, badgeHue);
-            tintedFrameCache.current.hue = badgeHue;
+            tintedFrameCache.current.hue1 = badgeHue;
           }
           ctx.drawImage(tintedFrameCache.current.frame1, 0, 0, size, size);
         } else {
@@ -240,20 +215,23 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
               const tg = parseInt(hex.slice(3,5), 16);
               const tb = parseInt(hex.slice(5,7), 16);
 
-              const threshold = key === 'skin' ? 60 : 15;
+              const thresholdSum = (key === 'skin' ? 60 : 15) * 3;
+              let normBase = 130;
+              if (key === 'skin') normBase = 235;
+              else if (key === 'clothes') normBase = 235;
+              
+              const invNormBase3 = 1 / (3 * normBase);
+              const maxR = tr * invNormBase3;
+              const maxG = tg * invNormBase3;
+              const maxB = tb * invNormBase3;
+
               for (let i = 0; i < data.length; i += 4) {
                 if (data[i+3] > 0) {
-                  const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
-                  if (brightness > threshold) {
-                    // Normalize factor based on typical asset brightness to preserve both shadows and highlights
-                    let normBase = 130;
-                    if (key === 'skin') normBase = 235;
-                    else if (key === 'clothes') normBase = 235;
-                    
-                    const factor = brightness / normBase;
-                    data[i] = Math.min(255, tr * factor);
-                    data[i+1] = Math.min(255, tg * factor);
-                    data[i+2] = Math.min(255, tb * factor);
+                  const sum = data[i] + data[i+1] + data[i+2];
+                  if (sum > thresholdSum) {
+                    data[i] = Math.min(255, sum * maxR);
+                    data[i+1] = Math.min(255, sum * maxG);
+                    data[i+2] = Math.min(255, sum * maxB);
                   }
                 }
               }
@@ -285,9 +263,9 @@ const AvatarCanvas = forwardRef(({ selectedOptions, onLoadingChange, skinColor, 
       const frame2 = loadedImagesRef.current.get('frame2');
       if (frame2) {
         if (badgeHue) {
-          if (tintedFrameCache.current.hue !== badgeHue || !tintedFrameCache.current.frame2) {
+          if (tintedFrameCache.current.hue2 !== badgeHue || !tintedFrameCache.current.frame2) {
             tintedFrameCache.current.frame2 = applyHueRotation(frame2, badgeHue);
-            tintedFrameCache.current.hue = badgeHue;
+            tintedFrameCache.current.hue2 = badgeHue;
           }
           ctx.drawImage(tintedFrameCache.current.frame2, 0, 0, size, size);
         } else {

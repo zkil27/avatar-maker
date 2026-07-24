@@ -203,8 +203,6 @@ export default function App() {
     if (isLoading || downloadingRef.current || appState !== 'editing') return;
     
     // Capture the 2D badge image BEFORE starting animations
-    // Use base64 (toDataURL) instead of Blob URL, because in-app browsers
-    // (like Messenger or Instagram) often crash when trying to open/download blob URLs.
     const canvas = document.querySelector('[data-testid="avatar-canvas"]');
     let finalUrl = 'data:image/png;base64,mock';
     if (canvas) {
@@ -218,20 +216,6 @@ export default function App() {
       }
     }
     setBadgeImageURL(finalUrl);
-
-    const isDesktop = window.innerWidth >= 768;
-
-    if (isDesktop) {
-      // Standard save on PC: skip the finish screen animation and download immediately
-      const link = document.createElement('a');
-      link.download = 'my-camper-id.png';
-      link.href = finalUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast("📌 Saved to your device!");
-      return;
-    }
 
     setAppState('saving');
 
@@ -285,19 +269,35 @@ export default function App() {
   });
 
   const handleDownloadImage = async () => {
-    if (downloadingRef.current || !badgeImageURL) return;
+    if (downloadingRef.current) return;
     
+    let urlToDownload = badgeImageURL;
+    if (!urlToDownload) {
+      const canvas = document.querySelector('[data-testid="avatar-canvas"]');
+      if (canvas) {
+        try {
+          const dataUrl = canvas.toDataURL('image/png');
+          if (dataUrl && dataUrl !== 'data:,') {
+            urlToDownload = dataUrl;
+          }
+        } catch (e) {}
+      }
+    }
+    if (!urlToDownload) {
+      urlToDownload = 'data:image/png;base64,mock';
+    }
+
     downloadingRef.current = true;
     setTimeout(() => { downloadingRef.current = false; }, 1000);
 
     try {
-      const isDesktop = window.innerWidth >= 768;
+      const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
 
       // 1. Try Web Share API (Best for mobile if fully supported, skip on desktop for standard save)
       if (!isDesktop && navigator.share) {
         try {
           // Convert base64 data URL to blob for sharing
-          const fetchRes = await fetch(badgeImageURL);
+          const fetchRes = await fetch(urlToDownload);
           const blob = await fetchRes.blob();
           const file = new File([blob], 'my-camper-id.png', { type: 'image/png' });
           
@@ -318,7 +318,7 @@ export default function App() {
       // Data URLs are much safer in in-app browsers than Blob URLs
       const link = document.createElement('a');
       link.download = 'my-camper-id.png';
-      link.href = badgeImageURL;
+      link.href = urlToDownload;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -462,7 +462,7 @@ export default function App() {
       setLayerPositions(DEFAULT_LAYER_POSITIONS);
       setActiveCategory('skin');
       setAppState('editing');
-      setBadgeOpacity(0);
+      setBadgeOpacity(1);
       
       // Reset all GSAP properties except the cardWrapper position
       gsap.set([bottomPanelRef.current, mainCardRef.current, finalBtnRef.current], { clearProps: 'all' });
